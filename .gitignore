@@ -9,6 +9,7 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+/mvp
 
 # testing
 /coverage
@@ -39,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# private R&D notes (synced to Google Doc, never push)
+/docs/
+
+# unggahan lokal (bukti, QRIS)
+/.uploads/
