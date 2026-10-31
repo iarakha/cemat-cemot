@@ -1,15 +1,15 @@
 import { connection } from "next/server";
-import { and, asc, eq, gte, lte } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { brands, menuItems, promos } from "@/db/schema";
-import { bestPromo } from "./pricing";
+import { brands, menuItems, promoPrices } from "@/db/schema";
+import { savingPercent } from "./pricing";
 
 export type CatalogItem = {
   id: string;
   name: string;
   category: string;
   normalPrice: number;
-  promo: { title: string; final: number } | null;
+  promo: { final: number; savingPercent: number } | null; // untuk badge "Hemat X%"
 };
 export type CatalogBrand = {
   id: string;
@@ -19,14 +19,13 @@ export type CatalogBrand = {
   items: CatalogItem[];
 };
 
-/** Katalog aktif + promo terbaik per menu. Tanpa cache: promo bergantung waktu. */
+/** Katalog aktif + harga promo (promo_prices) per menu. */
 export async function getCatalog(): Promise<CatalogBrand[]> {
-  await connection(); // promo bergantung waktu: render per request
-  const now = new Date();
+  await connection(); // harga bisa berubah dari admin: render per request
   const [bs, items, ps] = await Promise.all([
     db.select().from(brands).where(eq(brands.isActive, true)).orderBy(asc(brands.sortOrder)),
     db.select().from(menuItems).where(eq(menuItems.isAvailable, true)).orderBy(asc(menuItems.category), asc(menuItems.name)),
-    db.select().from(promos).where(and(eq(promos.isActive, true), lte(promos.startsAt, now), gte(promos.endsAt, now))),
+    db.select().from(promoPrices),
   ]);
 
   return bs.map((b) => ({
@@ -37,14 +36,14 @@ export async function getCatalog(): Promise<CatalogBrand[]> {
     items: items
       .filter((i) => i.brandId === b.id)
       .map((i) => {
-        const cands = ps.filter((p) => p.brandId === b.id && (p.menuItemId === null || p.menuItemId === i.id));
-        const best = bestPromo(i.normalPrice, cands);
+        const pp = ps.find((p) => p.menuItemId === i.id);
+        const pct = pp ? savingPercent(i.normalPrice, pp.promoPrice) : null;
         return {
           id: i.id,
           name: i.name,
           category: i.category,
           normalPrice: i.normalPrice,
-          promo: best ? { title: best.promo.title, final: best.final } : null,
+          promo: pp && pct ? { final: pp.promoPrice, savingPercent: pct } : null,
         };
       }),
   }));

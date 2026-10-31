@@ -10,6 +10,7 @@
     "db:generate": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs generate",
     "db:migrate": "node --env-file=.env.local node_modules/drizzle-kit/bin.cjs migrate",
     "db:seed": "tsx --env-file=.env.local src/db/seed.ts",
+    "db:check": "tsx --env-file=.env.local scripts/check-db.ts",
     "admin:create": "tsx --env-file=.env.local scripts/create-admin.ts",
     "check": "tsx src/lib/pricing.check.ts"
   },

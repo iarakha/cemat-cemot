@@ -36,6 +36,62 @@
       "when": 1793349376048,
       "tag": "0004_partner_amount",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793350000000,
+      "tag": "0005_neat_daredevil",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793350000001,
+      "tag": "0006_disable_unique_code",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793377067950,
+      "tag": "0007_admin_username",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793378617377,
+      "tag": "0008_promo_prices",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793380838431,
+      "tag": "0009_drop_promos",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793381944193,
+      "tag": "0010_option_masters",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793454117329,
+      "tag": "0011_partner_phone_optional",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793454691715,
+      "tag": "0012_payment_window_15",
+      "breakpoints": true
     }
   ]
 }

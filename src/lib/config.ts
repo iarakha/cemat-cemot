@@ -1,5 +1,5 @@
 // Konfigurasi toko dari DB (bukan env): nomor WA admin dan tujuan bayar aktif.
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { partnerCompanies, paymentAccounts, storeSettings } from "@/db/schema";
 
@@ -11,7 +11,7 @@ export async function getAdminWa() {
 // Tujuan bayar aktif pertama (v1: satu QRIS_STATIC). Path gambar relatif ke UPLOAD_DIR; layani lewat route handler.
 export async function getActivePaymentAccount() {
   const [row] = await db.select().from(paymentAccounts)
-    .where(eq(paymentAccounts.isActive, true)).orderBy(asc(paymentAccounts.sortOrder)).limit(1);
+    .where(and(eq(paymentAccounts.isActive, true), eq(paymentAccounts.type, "QRIS_STATIC"))).orderBy(asc(paymentAccounts.sortOrder)).limit(1);
   return row ?? null;
 }
 

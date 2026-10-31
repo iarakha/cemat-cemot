@@ -1,8 +1,9 @@
 // Seed dev. HARGA & MENU = CONTOH (bukan harga resmi brand); ganti lewat admin.
-// ponytail: hapus-lalu-isi ulang, hanya untuk dev. Jangan jalankan di prod yang sudah berisi order.
+// ponytail: contoh katalog hanya untuk brand baru; katalog brand lama dikelola lewat admin.
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { crc32, deflateSync } from "node:zlib";
+import { sql } from "drizzle-orm";
 import { db } from "./index";
 import * as s from "./schema";
 
@@ -24,9 +25,6 @@ function devQrisPng(): Buffer {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
     chunk("IHDR", ihdr), chunk("IDAT", deflateSync(raw)), chunk("IEND", Buffer.alloc(0))]);
 }
-
-const DAY = 864e5;
-const now = Date.now();
 
 const BRANDS = [
   { slug: "fore", name: "Fore Coffee", accentColor: "#2f7d5b" },
@@ -60,25 +58,28 @@ const MENU: Record<string, [string, string, number][]> = {
   ],
 };
 
-// [slug brand, nama menu | null = satu brand, judul, tipe, nilai, hari berlaku]
-const PROMOS: [string, string | null, string, "PERCENT" | "AMOUNT_OFF" | "FIXED_PRICE", number, number][] = [
-  ["fore", "Aren Latte", "Diskon 20%", "PERCENT", 20, 7],
-  ["kopi-kenangan", null, "Potongan Rp5.000 semua menu", "AMOUNT_OFF", 5000, 3],
-  ["cotti", "Coconut Latte", "Harga spesial", "FIXED_PRICE", 9900, 5],
-  ["janji-jiwa", "Es Kopi Jiwa", "Diskon 15%", "PERCENT", 15, 7],
-  ["tomoro", "Americano", "Harga spesial", "FIXED_PRICE", 9900, 2],
+// Master pilihan (sekali, dipakai semua menu): [grup, wajib, [label...]]. Harga/default per menu ada di MENU_OPTIONS.
+const MASTERS: [string, boolean, string[]][] = [
+  ["Suhu", true, ["Es", "Panas"]],
+  ["Ukuran", true, ["Regular", "Large"]],
+  ["Gula", true, ["No Sugar", "Less", "Normal", "Extra"]],
+  ["Level Es", true, ["Less", "Normal"]],
+];
+// Pilihan contoh per menu baru: [grup, label, selisih harga, default]. Large +4.000 hanya contoh.
+const MENU_OPTIONS: [string, string, number, boolean][] = [
+  ["Suhu", "Es", 0, true], ["Suhu", "Panas", 0, false],
+  ["Ukuran", "Regular", 0, true], ["Ukuran", "Large", 4000, false],
+  ["Gula", "Normal", 0, true], ["Gula", "Less", 0, false], ["Gula", "No Sugar", 0, false], ["Gula", "Extra", 0, false],
+  ["Level Es", "Normal", 0, true], ["Level Es", "Less", 0, false],
 ];
 
-const OPTIONS = [
-  { name: "Ukuran", required: true, choices: [["Regular", 0, true], ["Large", 4000, false]] },
-  { name: "Gula", required: true, choices: [["Normal", 0, true], ["Less", 0, false], ["No Sugar", 0, false]] },
-  { name: "Es", required: true, choices: [["Normal", 0, true], ["Less", 0, false], ["Panas", 0, false]] },
-] as const;
-
 async function main() {
+  const url = new URL(process.env.DATABASE_URL!);
+  if (process.env.NODE_ENV === "production" || !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)) {
+    throw new Error("Seed contoh hanya boleh dijalankan di DB lokal non-production");
+  }
  await db.transaction(async (tx) => {
-  await tx.delete(s.orders); // cascade: payments, order_events
-  await tx.delete(s.brands); // cascade: menu, opsi, promo, outlet
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(112848, 1)`);
   await tx.insert(s.storeSettings).values({ id: 1, adminWa: "6281200000000" }).onConflictDoNothing();
 
   // Tambah akun BANK/EWALLET/QRIS lain nanti lewat baris payment_accounts, tanpa migrasi.
@@ -91,34 +92,33 @@ async function main() {
     });
   }
 
+  // Master tidak pernah ditimpa: hanya ditambah jika belum ada, sehingga edit admin tetap utuh.
+  await tx.insert(s.optionGroups)
+    .values(MASTERS.map(([name, required], sortOrder) => ({ name, required, sortOrder })))
+    .onConflictDoNothing({ target: s.optionGroups.name });
+  const groups = await tx.select().from(s.optionGroups);
+  await tx.insert(s.optionChoices)
+    .values(MASTERS.flatMap(([g, , labels]) => labels.map((label, sortOrder) => ({ groupId: groups.find((x) => x.name === g)!.id, label, sortOrder }))))
+    .onConflictDoNothing();
+  const choice = new Map((await tx.select().from(s.optionChoices))
+    .map((c) => [`${groups.find((g) => g.id === c.groupId)?.name}:${c.label}`, c]));
+
   const brandRows = await tx.insert(s.brands)
-    .values(BRANDS.map((b, i) => ({ ...b, sortOrder: i }))).returning();
+    .values(BRANDS.map((b, i) => ({ ...b, sortOrder: i })))
+    .onConflictDoNothing({ target: s.brands.slug }).returning();
   const bySlug = new Map(brandRows.map((b) => [b.slug, b.id]));
-  const menuIds = new Map<string, string>(); // `${slug}:${nama}` -> id
 
   for (const [slug, items] of Object.entries(MENU)) {
+    if (!bySlug.has(slug)) continue;
     const rows = await tx.insert(s.menuItems).values(
       items.map(([name, category, normalPrice]) => ({ brandId: bySlug.get(slug)!, name, category, normalPrice })),
     ).returning();
-    for (const r of rows) {
-      menuIds.set(`${slug}:${r.name}`, r.id);
-      for (const [i, g] of OPTIONS.entries()) {
-        const [grp] = await tx.insert(s.optionGroups)
-          .values({ menuItemId: r.id, name: g.name, required: g.required, sortOrder: i }).returning();
-        await tx.insert(s.optionChoices).values(
-          g.choices.map(([label, priceDelta, isDefault]) => ({ groupId: grp.id, label, priceDelta, isDefault })),
-        );
-      }
-    }
+    const links = rows.flatMap((r) => MENU_OPTIONS.map(([g, label, priceDelta, isDefault]) => {
+      const c = choice.get(`${g}:${label}`)!;
+      return { menuItemId: r.id, choiceId: c.id, groupId: c.groupId, priceDelta, isDefault };
+    }));
+    await tx.insert(s.menuItemChoices).values(links);
   }
-
-  await tx.insert(s.promos).values(PROMOS.map(([slug, menu, title, type, value, days]) => ({
-    brandId: bySlug.get(slug)!,
-    menuItemId: menu ? menuIds.get(`${slug}:${menu}`)! : null,
-    title, type, value,
-    terms: "Contoh promo untuk pengembangan.",
-    startsAt: new Date(now - DAY), endsAt: new Date(now + days * DAY),
-  })));
  });
  console.log("seed ok");
 }

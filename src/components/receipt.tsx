@@ -41,8 +41,7 @@ export function Receipt({ brand, index }: { brand: CatalogBrand; index: number }
                     </div>
                     {i.promo && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="stamp" aria-label="Promo">Promo</span>
-                        <span>{i.promo.title}</span>
+                        <span className="stamp" aria-label={`Hemat ${i.promo.savingPercent} persen`}>Hemat {i.promo.savingPercent}%</span>
                         <span className="ml-auto line-through">{rupiah(i.normalPrice)}</span>
                       </div>
                     )}
