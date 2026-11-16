@@ -159,6 +159,55 @@ async function main() {
   assert.equal(JSON.stringify(customerView).includes('9876543210'),false);
   await call(`/api/admin/orders/${order.id}/mark-refunded`,200,{note:'Refund processed'},true);
   assert.equal((await sql`select status from orders where id=${order.id}`)[0].status,'REFUNDED');
+  // Impor massal menu (RND 16.2): preview, commit atomik, token terikat berkas, idempotensi.
+  const imp = async (path: string, status: number, csv: string | Uint8Array, extra: Record<string, string> = {}, admin = true) => {
+    const fd = new FormData();
+    fd.set('file', new File([csv as BlobPart], 'menu.csv', { type: 'text/csv' }));
+    for (const [k, v] of Object.entries(extra)) fd.set(k, v);
+    return call(path, status, fd, admin);
+  };
+  const H = 'brand,nama,kategori,harga_app,harga_titip,addons,tersedia\n';
+  const slug = brand.slug, existingName = item.name;
+  const [opt] = await sql`insert into option_groups (name,required,max_select) values ('Topping Impor',false,2) returning id,name`;
+  await sql`insert into option_choices (group_id,label) values (${opt.id},'Boba'),(${opt.id},'Jelly')`;
+  const [req] = await sql`select g.name, (select label from option_choices c where c.group_id=g.id order by sort_order,label limit 1) label from option_groups g where g.required and (select count(*) from option_choices c where c.group_id=g.id)>1 limit 1`;
+  const csv = H + `${slug},Impor Baru A,Kopi,30000,24000,${opt.name}|${req.name}=${req.label},true\n${slug},Rusak Default,Kopi,10000,,${req.name},\n${slug},Impor Baru B,Roti,15000,,,false\n${slug},${existingName},Ubah Kategori,${item.normalPrice},,,\n${slug},Rusak Harga,Kopi,10000,20000,,\nmerek-ngawur,Rusak Brand,Kopi,10000,,,\n${slug},Rusak Grup,Kopi,10000,,GrupTakAda,\n${slug},=cmd,Kopi,10000,,,\n`;
+  await call('/api/admin/menu-import/template', 401, undefined, false);
+  assert.ok((await (await call('/api/admin/menu-import/template', 200, undefined, true)).text()).startsWith('brand,nama,kategori,harga_app'));
+  await imp('/api/admin/menu-import/preview', 401, csv, {}, false);
+  await imp('/api/admin/menu-import/preview', 400, H);
+  await imp('/api/admin/menu-import/preview', 400, 'nama,kategori\nA,B\n');
+  const before = (await sql`select count(*)::int n from menu_items`)[0].n;
+  const pv = await (await imp('/api/admin/menu-import/preview', 200, csv)).json();
+  assert.deepEqual(pv.summary, { read: 8, ready: 3, errors: 5, created: 2, updated: 1 });
+  assert.equal(pv.rows.find((r: { row: number }) => r.row === 2).action, 'create');
+  assert.equal(pv.rows.find((r: { row: number }) => r.row === 5).action, 'update');
+  assert.match(JSON.stringify(pv.rows.find((r: { row: number }) => r.row === 3).errors), /Default grup wajib/);
+  assert.equal((await sql`select count(*)::int n from menu_items`)[0].n, before); // preview tidak menulis
+  await imp('/api/admin/menu-import/commit', 400, csv, { token: 'bukan-token' });
+  await imp('/api/admin/menu-import/commit', 400, csv + `${slug},Tambahan,Kopi,1000,,,\n`, { token: pv.token }); // berkas lain, token lama
+  await imp('/api/admin/menu-import/commit', 401, csv, { token: pv.token, skipErrors: 'true' }, false);
+  await imp('/api/admin/menu-import/commit', 409, csv, { token: pv.token }); // ada galat tanpa konfirmasi
+  assert.equal((await sql`select count(*)::int n from menu_items`)[0].n, before); // tidak ada impor sebagian
+  const importDone = await (await imp('/api/admin/menu-import/commit', 200, csv, { token: pv.token, skipErrors: 'true' })).json();
+  assert.deepEqual(importDone, { read: 8, ready: 3, errors: 5, created: 2, updated: 1, skipped: 5 });
+  assert.equal((await sql`select count(*)::int n from menu_items`)[0].n, before + 2);
+  const [a] = await sql`select m.id,m.is_available,p.promo_price,(select count(*)::int from menu_item_choices c where c.menu_item_id=m.id) links from menu_items m left join promo_prices p on p.menu_item_id=m.id where m.name='Impor Baru A'`;
+  assert.equal(a.promo_price, 24000); assert.equal(a.is_available, true); assert.ok(a.links >= 3);
+  assert.equal((await sql`select is_available from menu_items where name='Impor Baru B'`)[0].is_available, false);
+  assert.equal((await sql`select category from menu_items where id=${item.id}`)[0].category, 'Ubah Kategori');
+  assert.equal((await sql`select count(*)::int n from menu_items where name in ('Rusak Harga','Rusak Brand','Rusak Grup','=cmd','Rusak Default')`)[0].n, 0);
+  await imp('/api/admin/menu-import/commit', 409, csv, { token: pv.token, skipErrors: 'true' }); // replay tidak menggandakan
+  assert.equal((await sql`select count(*)::int n from menu_items`)[0].n, before + 2);
+  // Atomik: baris ke-2 valid menurut parser tetapi melanggar constraint DB; seluruh batch rollback.
+  await sql`create function menu_import_boom() returns trigger language plpgsql as $f$ begin if new.name='Boom Impor' then raise exception 'boom' using errcode='23514'; end if; return new; end $f$`;
+  await sql`create trigger menu_import_boom before insert on menu_items for each row execute function menu_import_boom()`;
+  const csv2 = H + `${slug},Aman Impor,Kopi,5000,,,\n${slug},Boom Impor,Kopi,5000,,,\n`;
+  const pv2 = await (await imp('/api/admin/menu-import/preview', 200, csv2)).json();
+  await imp('/api/admin/menu-import/commit', 409, csv2, { token: pv2.token });
+  assert.equal((await sql`select count(*)::int n from menu_items where name in ('Aman Impor','Boom Impor')`)[0].n, 0);
+  await sql`drop trigger menu_import_boom on menu_items`;
+  await sql`drop function menu_import_boom()`;
   await call('/api/admin/session',204,undefined,true,'DELETE');
   await call('/api/admin/session',401,undefined,true);
   console.log(`api flow passed: ${tests} HTTP assertions, persisted DONE, parallel checkout idempotency`);
