@@ -71,7 +71,7 @@ async function main() {
       await reject(`UPDATE option_groups SET max_select = 0 WHERE id = '${grp.id}'`, "23514", "option_groups_max_select_chk");
       await reject(`INSERT INTO promo_prices (menu_item_id, promo_price) VALUES ('${menu.id}', 0)`, "23514", "promo_prices_price_chk");
       await reject("UPDATE store_settings SET status = 'INVALID'", "22P02");
-      for (const status of ["OPEN", "CLOSED", "BREAK", "PRAYER", "LEAVE"]) {
+      for (const status of ["OPEN", "CLOSED", "BREAK", "PRAYER", "LEAVE", "OFF", "LUNCH_BREAK"]) {
         await tx`UPDATE store_settings SET status = ${status} WHERE id = 1`;
         checks++;
       }

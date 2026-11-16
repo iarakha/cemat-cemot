@@ -2,24 +2,24 @@
 
 Base URL lokal saat ini: `http://localhost:3210` (gunakan URL/port dari `next dev`). Semua respons JSON `Cache-Control: no-store`. Error: `{ "error": { "code": "...", "message": "..." } }`. API cookie-auth same-origin; tidak ada CORS wildcard. Frontend memakai `fetch(path, { credentials: "same-origin" })`.
 
-Status: implementasi BE awal, bukan deklarasi seluruh cakupan RND selesai. OTP fail-closed; pemulihan pesanan via OTP WA (bot Hermes) dijadwalkan phase 2, lihat `docs/PLAN.md`. Import CSV/XLSX dan avatar belum tersedia. Admin REST adalah adapter tambahan untuk service DB; kontrak RND sebelumnya menyebut Server Actions. UI admin belum dibangun.
+Status: implementasi BE awal, bukan deklarasi seluruh cakupan RND selesai. OTP fail-closed; pemulihan pesanan via OTP WA (bot Hermes) dijadwalkan phase 2, lihat `docs/PLAN.md`. Impor massal menu CSV/XLSX sudah tersedia; avatar masih phase 2 dan belum tersedia. Admin REST adalah adapter tambahan untuk service DB; kontrak RND sebelumnya menyebut Server Actions. UI admin belum dibangun.
 
 ## Publik
 
 | Method | Path | Input / hasil |
 | --- | --- | --- |
 | GET | `/api/health` | Cek koneksi DB, `{ok:true}` |
-| GET | `/api/store` | Status, label, jam, fee, batas cup/bayar, adminWa |
+| GET | `/api/store` | Status toko (enum `store_status`, migrasi `0018_store_status_options`): `OPEN`, `CLOSED`, `BREAK`, `PRAYER`, `LEAVE`, `OFF`, `LUNCH_BREAK`; label, jam, fee, batas cup/bayar, adminWa |
 | GET | `/api/catalog` | `{brands:[{id,slug,name,items:[{id,name,normalPrice,promo,options}]}]}`. Opsi berisi grup, required, maxSelect, choices, delta, default |
 | GET | `/api/outlets?brand=fore&lat=-6.2&lng=106.8` | Maks 10 aktif terdekat, haversine, distanceKm |
 | GET | `/api/outlets?brand=fore&q=Jakarta` | Cari nama/alamat/city; maks 10 |
 | POST | `/api/checkout` | Isi keranjang localStorage dikirim lewat body (brandSlug, outletId, items). Harga dan opsi divalidasi ulang di server. 201 `{token}`, replay 200. Header `Idempotency-Key` juga diterima jika field body kosong |
 | GET | `/api/pesanan/{token}` | Status, item snapshot, totals, expiresAt, queueNumber, payment, paymentAccounts, phases (jam dari events), progress (5 langkah customer: label, checked, active, at), refundState, adminWa, waUrls |
 | POST | `/api/pesanan/{token}/proof` | Multipart field `file`, JPEG/PNG/WebP <=10 MB. 204; VERIFYING terkunci 409, expired 410 |
-| POST | `/api/pesanan/{token}/refund-account` | `{method:"BANK"|"EWALLET",provider,accountNo,accountName}`; hanya REFUND_REQUESTED; 204 |
+| POST | `/api/pesanan/{token}/refund-account` | Dinonaktifkan; selalu 403 `SELF_SERVICE_REFUND_DISABLED` (token tak valid tetap 404) |
 | GET | `/api/pesanan/{token}/files/payment-proof` | Gambar bukti bayar milik token |
 | GET | `/api/pesanan/{token}/files/order-proof` | Bukti order dari admin milik token |
-| GET | `/api/qris/{paymentAccountId}` | QRIS tujuan aktif |
+| GET | `/api/qris/{paymentAccountId}?token={token}` | QRIS aktif publik; QRIS nonaktif hanya dapat diambil dengan token pesanan yang memiliki payment aktif terkait QRIS itu |
 | POST | `/api/pesanan/lookup` | `{type:"phone"|"booking"|"pickup",value,brand?,outletId?}`. Tanpa cookie perangkat dan tanpa sesi OTP: 202 generik, tidak membuka order. Dengan keduanya/salah satu: hanya order milik perangkat/HP ber-OTP |
 | GET | `/api/customer/orders?limit=10&offset=0` | Riwayat: order dari perangkat ini (cookie `cc_buyer`) ATAU nomor HP ber-OTP. Respons `{orders:[...],limit,offset}`, item `{token,orderCode,status,total,queueNumber,brand,outlet,createdAt}`; `token` untuk `/api/pesanan/{token}`. Tanpa identitas: 200 daftar kosong. Urut terbaru |
 | POST | `/api/customer/otp/request` | `{challenge}`. Saat ini 503 OTP_UNAVAILABLE; tidak membuat sesi/challenge tersimpan |
@@ -47,6 +47,9 @@ Nilai total contoh bukan harga resmi. Hitung dari katalog; server tetap menghitu
 | Method | Path | Input / hasil |
 | --- | --- | --- |
 | POST | `/api/admin/session` | `{username,password}`; sukses cookie httpOnly 12 jam |
+| GET | `/api/admin/menu-import/template` | Unduh template CSV; admin wajib masuk |
+| POST | `/api/admin/menu-import/preview` | Multipart `file` (CSV UTF-8/XLSX); admin wajib masuk; pratinjau tanpa mengubah data |
+| POST | `/api/admin/menu-import/commit` | Multipart `file`, `token`, opsional `skipErrors` (`true`/`false`); admin wajib masuk; commit atomik |
 | GET | `/api/admin/session` | Identitas sesi; 401 bila tidak valid |
 | DELETE | `/api/admin/session` | Logout; 204 |
 | GET | `/api/admin/orders?status=PAID&q=&limit=20&offset=0` | Daftar order. Respons `{orders,total,counts,limit,offset}`: `total` mengikuti `status`+`q`; `counts` per status (+`ALL`) mengikuti `q` saja, untuk chip filter. Tiap baris: `id,orderCode,status,customerName,customerPhone(62..),queueNumber,brand,outlet,total,hasOrderProof,orderProofAt,createdAt,paidAt`. `q` cari kode booking, nomor antrean, nama, potongan HP (08/62). PAID/PROCESSING urut paidAt naik |
@@ -57,6 +60,10 @@ Nilai total contoh bukan harga resmi. Hitung dari katalog; server tetap menghitu
 | GET | `/api/admin/files/order-proof/{orderId}` | Bukti order di app brand (diunggah admin) |
 | GET | `/api/admin/files/qris/{paymentAccountId}` | QRIS admin, termasuk nonaktif |
 | PATCH | `/api/admin/profile` | `{action:"identity",username,email,currentPassword}` atau `{action:"password",currentPassword,newPassword,confirmation}`. Sukses mencabut seluruh sesi |
+
+Impor menu: akses admin perlu sesi valid (401 tanpa sesi; POST memeriksa `Origin` bila header dikirim). Preview menerima satu `file`, menghasilkan `{token,expiresAt,summary:{read,ready,errors,created,updated},rows:[{row,action,brand,name,category,normalPrice,promoPrice,isAvailable,addonLinks,errors:[{field,message}]}]}` tanpa menulis. `token` mengikat admin, hash berkas, hash rencana, berlaku 15 menit. Commit memakai token dan berkas yang sama; `skipErrors` default `false`; respons `{read,ready,errors,created,updated,skipped}`. Error: 400 `INVALID_TOKEN`/`TOKEN_EXPIRED`, 409 `BATCH_CHANGED`/`HAS_ERRORS` (konfirmasi ulang dengan `skipErrors=true`), 413 `TOO_LARGE`. Batas: berkas 10 MB, 1.000 baris data, isi XLSX setelah dekompresi 50 MB.
+
+QRIS pesanan ditetapkan pada payment (`payments.payment_account_id`) dan snapshot tujuan (`destination_snapshot`) saat checkout; QRIS nonaktif hanya dapat diakses memakai token order dengan payment aktif yang terhubung. Batas kedaluwarsa inklusif: `now >= expiresAt` sudah expired, termasuk upload bukti pembeli; QRIS order yang masih `PENDING_PAYMENT` tidak dilayani saat waktu itu tercapai. `PROOF_SENT` dan `VERIFYING` tidak terkena expiry.
 
 Aksi order:
 
@@ -73,6 +80,7 @@ Aksi order:
 | `order-proof` | Multipart `queueNumber?`, `file?`, `note?`; minimal salah satu; PROCESSING/DONE. Simpan ke kolom bukti order (`orders.order_proof_path/at/by`), tidak menyentuh bukti bayar. `replace-proof` = alias lama |
 | `mark-done` | `{}`; PROCESSING ke DONE |
 | `fail` | `{reason,note?}`; PAID/PROCESSING ke REFUND_REQUESTED |
+| `set-refund-account` | `{method:"BANK"|"EWALLET",provider,accountNo,accountName}`; hanya REFUND_REQUESTED |
 | `mark-refunded` | `{note}`; rekening refund wajib terisi |
 
 Semua aksi ber-guard, transaksi dan row lock. Replay transisi yang sudah selesai mengembalikan `{alreadyProcessed:true,status}`. WA hanya tautan manual, tidak ada pengiriman otomatis.
@@ -115,4 +123,4 @@ Env server-only: DATABASE_URL, UPLOAD_DIR, OTP_HMAC_SECRET (>=32 karakter acak),
 `API_BASE_URL=http://localhost:3210 npm run api:check`: HTTP read-only; tidak membuat order.
 `npm run build && npm run api:test`: buat DB PostgreSQL lokal sementara, migrate/seed, uji HTTP checkout paralel sampai DONE, hapus hanya DB/berkas test milik runner. Membutuhkan role lokal dengan CREATE DATABASE. Tidak menjalankan fixture pada DB operasional. Port test 3211 harus kosong.
 
-Belum selesai: provider OTP nyata + recovery end-to-end, bulk import CSV/XLSX, avatar, pemantauan/rate limit reverse proxy dan deployment. Endpoint sudah tersedia tidak berarti seluruh cabang kontrak sudah diuji; lihat hasil test dan review sebelum produksi.
+Belum selesai: provider OTP nyata + recovery end-to-end, avatar, pemantauan/rate limit reverse proxy dan deployment. Endpoint sudah tersedia tidak berarti seluruh cabang kontrak sudah diuji; lihat hasil test dan review sebelum produksi.
