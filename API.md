@@ -2,7 +2,7 @@
 
 Base URL lokal saat ini: `http://localhost:3210` (gunakan URL/port dari `next dev`). Semua respons JSON `Cache-Control: no-store`. Error: `{ "error": { "code": "...", "message": "..." } }`. API cookie-auth same-origin; tidak ada CORS wildcard. Frontend memakai `fetch(path, { credentials: "same-origin" })`.
 
-Status: implementasi BE awal, bukan deklarasi seluruh cakupan RND selesai. OTP fail-closed karena provider belum dipilih. Import CSV/XLSX dan avatar belum tersedia. Admin REST adalah adapter tambahan untuk service DB; kontrak RND sebelumnya menyebut Server Actions. UI admin belum dibangun.
+Status: implementasi BE awal, bukan deklarasi seluruh cakupan RND selesai. OTP fail-closed; pemulihan pesanan via OTP WA (bot Hermes) dijadwalkan phase 2, lihat `docs/PLAN.md`. Import CSV/XLSX dan avatar belum tersedia. Admin REST adalah adapter tambahan untuk service DB; kontrak RND sebelumnya menyebut Server Actions. UI admin belum dibangun.
 
 ## Publik
 
