@@ -32,8 +32,10 @@ async function main() {
   cookie = login.headers.get('set-cookie')!.split(';')[0];
   await call('/api/admin/session',200,undefined,true);
   await call('/api/admin/data/partners',401);
-  const created = await (await call('/api/admin/data/partners',201,{name:'Test partner CRUD',phone:'',website:'',isActive:true},true)).json();
-  assert.equal(created.phone,null);
+  const created = await (await call('/api/admin/data/partners',201,{name:'Test partner CRUD',phone:'',website:'',notes:'minimal pembelian 2 item',isActive:true},true)).json();
+  assert.equal(created.phone,null);assert.equal(created.notes,'minimal pembelian 2 item');
+  const plist = await (await call('/api/admin/data/partners',200,undefined,true)).json();
+  assert.equal(plist.total,2);assert.equal(plist.items.length,2);assert.equal(plist.limit,50);
   await call(`/api/admin/data/partners/${created.id}`,200,{name:'Updated partner',phone:'081234567890',website:'https://example.invalid',isActive:false},true,'PUT');
   await call(`/api/admin/data/partners/${created.id}`,204,{confirm:true},true,'DELETE');
   const catalog = await (await call('/api/catalog',200)).json();
@@ -109,6 +111,29 @@ async function main() {
   assert.equal(done.status,'DONE');
   assert.deepEqual(done.progress.steps.map((s: {checked:boolean})=>s.checked),[true,true,true,true,true]);
   await call(`/api/admin/orders/${order.id}/mark-done`,200,{},true);
+  // total/count list admin + dashboard
+  const all = await (await call('/api/admin/orders',200,undefined,true)).json();
+  assert.equal(all.total,1);assert.equal(all.counts.ALL,1);assert.equal(all.counts.DONE,1);
+  const none = await (await call('/api/admin/orders?status=PAID',200,undefined,true)).json();
+  assert.equal(none.total,0);assert.equal(none.orders.length,0);assert.equal(none.counts.DONE,1);
+  const dash = await (await call('/api/admin/dashboard?range=7d',200,undefined,true)).json();
+  assert.equal(dash.done,1);assert.equal(dash.paidCount,1);assert.equal(dash.revenue,total);
+  await call('/api/admin/dashboard?range=year',400,undefined,true);
+  await call('/api/admin/dashboard',401);
+  const mu = await (await call('/api/admin/data/menu?limit=2',200,undefined,true)).json();
+  assert.equal(mu.items.length,2);assert.ok(mu.total>=2);assert.equal(Object.values(mu.byBrand as Record<string,number>).reduce((a,b)=>a+b,0),mu.total);
+  // jadwal per hari: hari ini Jakarta libur -> checkout ditolak, /api/store closedToday
+  const settings = await (await call('/api/admin/data/settings',200,undefined,true)).json();
+  const wd = new Date(Date.now()+7*3600e3).getUTCDay();
+  const sched = (row: object) => ({...settings,autoSchedule:true,openAt:'08:00',closeAt:'21:00',schedule:[{day:wd,...row}]});
+  const put = (b: object) => call('/api/admin/data/settings',200,b,true);
+  await call('/api/admin/data/settings',400,sched({openAt:'10:00',closeAt:'09:00'}),true);
+  await put(sched({isClosed:true}));
+  const store = await (await call('/api/store',200)).json();
+  assert.equal(store.status,'CLOSED');assert.equal(store.closedToday,true);
+  assert.equal((await (await call('/api/admin/data/settings',200,undefined,true)).json()).schedule.length,1);
+  await put({...settings,autoSchedule:false,schedule:[]});
+  assert.equal((await (await call('/api/store',200)).json()).status,'OPEN');
   await call('/api/customer/otp/request',503,{challenge:'opaque'});
   await call('/api/admin/session',204,undefined,true,'DELETE');
   await call('/api/admin/session',401,undefined,true);

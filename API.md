@@ -49,8 +49,9 @@ Nilai total contoh bukan harga resmi. Hitung dari katalog; server tetap menghitu
 | POST | `/api/admin/session` | `{username,password}`; sukses cookie httpOnly 12 jam |
 | GET | `/api/admin/session` | Identitas sesi; 401 bila tidak valid |
 | DELETE | `/api/admin/session` | Logout; 204 |
-| GET | `/api/admin/orders?status=PAID&q=&limit=20&offset=0` | Daftar order. Tiap baris: `id,orderCode,status,customerName,customerPhone(62..),queueNumber,brand,outlet,total,hasOrderProof,orderProofAt,createdAt,paidAt`. `q` cari kode booking, nomor antrean, nama, potongan HP (08/62). PAID/PROCESSING urut paidAt naik |
+| GET | `/api/admin/orders?status=PAID&q=&limit=20&offset=0` | Daftar order. Respons `{orders,total,counts,limit,offset}`: `total` mengikuti `status`+`q`; `counts` per status (+`ALL`) mengikuti `q` saja, untuk chip filter. Tiap baris: `id,orderCode,status,customerName,customerPhone(62..),queueNumber,brand,outlet,total,hasOrderProof,orderProofAt,createdAt,paidAt`. `q` cari kode booking, nomor antrean, nama, potongan HP (08/62). PAID/PROCESSING urut paidAt naik |
 | GET | `/api/admin/orders/{orderId}` | Order (termasuk `customerName`,`customerPhone`,`queueNumber`, `orderProof:{exists,uploadedAt,uploadedBy}`), item, riwayat payment (`hasProof` = bukti bayar pembeli), event. Tidak mengubah status |
+| GET | `/api/admin/dashboard?range=today\|7d\|month` | Ringkasan hari Jakarta: `revenue,paidCount` (PAID/PROCESSING/DONE menurut `paidAt`), `unpaid{total,awaitingProof,needsCheck}`, `processing{total,orderedToPartner,inProgress}`, `done`, `byStatus` (menurut `createdAt`) |
 | POST | `/api/admin/orders/{orderId}/{action}` | JSON kecuali aksi upload. Aksi di bawah |
 | GET | `/api/admin/files/payment-proof/{paymentId}` | Bukti pembayaran pembeli (ID payment, bukan order) |
 | GET | `/api/admin/files/order-proof/{orderId}` | Bukti order di app brand (diunggah admin) |
@@ -82,7 +83,7 @@ Migrasi `0015_ui_order_flow`: READY lama menjadi PROCESSING; PROCESSING lama tan
 
 ## Master data admin
 
-`GET /api/admin/data/{entity}?limit=50&offset=0&brandId=...`
+`GET /api/admin/data/{entity}?limit=50&offset=0&brandId=...` Respons `{items,total,limit,offset}`; `menu` dan `outlets` juga `byBrand:{brandId:jumlah}` (tanpa filter brand, untuk chip). Pengecualian: `settings` mengembalikan objek pengaturan + `schedule`.
 `POST /api/admin/data/{entity}` membuat data.
 `PUT /api/admin/data/{entity}/{id}` menyimpan data lengkap (bukan partial patch).
 `DELETE /api/admin/data/{entity}/{id}` body `{confirm:true}`.
@@ -94,9 +95,9 @@ Migrasi `0015_ui_order_flow`: READY lama menjadi PROCESSING; PROCESSING lama tan
 | `option-groups` | name,required,maxSelect,sortOrder? |
 | `option-choices` | groupId,label,sortOrder? |
 | `outlets` | brandId,name,address,city(nullable),lat,lng,isActive?. MANUAL untuk data baru; DELETE selalu ditolak untuk menjaga data outlet |
-| `partners` | name,phone(nullable),website(nullable),isActive? |
+| `partners` | name,phone(nullable),website(nullable),notes(nullable, maks 500),isActive? |
 | `payment-accounts` | Multipart: type,provider,accountName,accountNo?,isActive,sortOrder?,file(gambar QRIS). BANK/EWALLET selalu cadangan nonaktif. QRIS terakhir terlindungi |
-| `settings` | POST update singleton: status,openAt,closeAt,adminWa,serviceFee,maxCups,paymentWindowMin,checkoutCutoffMin,verifyEtaMin,closedMessage? |
+| `settings` | POST update singleton: status,openAt,closeAt,adminWa,serviceFee,maxCups,paymentWindowMin,checkoutCutoffMin,verifyEtaMin,closedMessage?,autoSchedule?,schedule?:[{day:0-6 (0=Minggu),isClosed?,openAt,closeAt}]. `schedule` dikirim = mengganti seluruh jadwal; hari tanpa entri memakai openAt/closeAt default. Bila `autoSchedule` true: hari libur = tutup, jam hari itu dipakai, dan status manual non-OPEN berlaku sampai pergantian hari Jakarta |
 
 Entitas terpakai FK tidak bisa dihapus; nonaktifkan. Master opsi tertaut harus dilepas dari menu sebelum hapus. Tujuan payment yang pernah dipakai tidak ditimpa; buat pengganti untuk menjaga riwayat.
 

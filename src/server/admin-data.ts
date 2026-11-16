@@ -1,12 +1,13 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { brands, menuItems, menuItemChoices, optionGroups, optionChoices, outlets, orders, payments, partnerCompanies, paymentAccounts, promoPrices, storeSettings } from "@/db/schema";
+import { brands, menuItems, menuItemChoices, optionGroups, optionChoices, outlets, orders, payments, partnerCompanies, paymentAccounts, promoPrices, storeSchedule, storeSettings } from "@/db/schema";
 import { ApiError, bad, Input, NOT_FOUND, asInput, isUuid } from "./http";
 import { normalizePhone } from "@/lib/order-rules";
 import { getMenuOptions } from "@/lib/menu-options";
 import { saveImage, removeStored } from "./files";
 
 const moneyMax = 2_147_483_647;
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d(?::00)?$/;
 const entities = ["brands", "menu", "option-groups", "option-choices", "outlets", "partners", "payment-accounts", "settings"] as const;
 export function assertEntity(e: string) { if (!(entities as readonly string[]).includes(e)) throw NOT_FOUND; }
 
@@ -16,19 +17,37 @@ export async function listData(entity: string, sp: URLSearchParams) {
   const limit = b.has("limit") ? b.int("limit", 1, 100) : 50;
   const offset = b.has("offset") ? b.int("offset", 0, 1_000_000) : 0;
   const brand = b.has("brandId") ? b.uuid("brandId") : null;
-  if (entity === "settings") return (await db.select().from(storeSettings).where(eq(storeSettings.id, 1)))[0];
-  if (entity === "brands") return db.select().from(brands).orderBy(asc(brands.sortOrder), asc(brands.id));
-  if (entity === "menu") {
-    const rows = await db.select({ menu: menuItems, promoPrice: promoPrices.promoPrice }).from(menuItems).leftJoin(promoPrices, eq(promoPrices.menuItemId, menuItems.id))
-      .where(brand ? eq(menuItems.brandId, brand) : undefined).orderBy(asc(menuItems.name), asc(menuItems.id)).limit(limit).offset(offset);
-    return Promise.all(rows.map(async r => ({ ...r.menu, promoPrice: r.promoPrice, options: await getMenuOptions(r.menu.id) })));
+  const all = <T extends unknown[]>(items: T) => ({ items, total: items.length, limit, offset });
+  const count = async (t: typeof menuItems | typeof outlets, where: ReturnType<typeof eq> | undefined) =>
+    (await db.select({ n: sql<number>`count(*)::int` }).from(t).where(where))[0].n;
+  // byBrand: jumlah per brand tanpa filter brandId (untuk chip filter).
+  const byBrand = async (t: typeof menuItems | typeof outlets) =>
+    Object.fromEntries((await db.select({ k: t.brandId, n: sql<number>`count(*)::int` }).from(t).groupBy(t.brandId)).map(r => [r.k, r.n]));
+  if (entity === "settings") {
+    const settings = (await db.select().from(storeSettings).where(eq(storeSettings.id, 1)))[0];
+    return { ...settings, schedule: await db.select().from(storeSchedule).orderBy(asc(storeSchedule.day)) };
   }
-  if (entity === "outlets") return db.select().from(outlets).where(brand ? eq(outlets.brandId, brand) : undefined).orderBy(asc(outlets.name), asc(outlets.id)).limit(limit).offset(offset);
-  if (entity === "partners") return db.select().from(partnerCompanies).orderBy(asc(partnerCompanies.name), asc(partnerCompanies.id)).limit(limit).offset(offset);
-  if (entity === "option-groups") return db.select().from(optionGroups).orderBy(asc(optionGroups.sortOrder), asc(optionGroups.id));
-  if (entity === "option-choices") return db.select().from(optionChoices).orderBy(asc(optionChoices.sortOrder), asc(optionChoices.id));
+  if (entity === "brands") return all(await db.select().from(brands).orderBy(asc(brands.sortOrder), asc(brands.id)));
+  if (entity === "menu") {
+    const where = brand ? eq(menuItems.brandId, brand) : undefined;
+    const rows = await db.select({ menu: menuItems, promoPrice: promoPrices.promoPrice }).from(menuItems).leftJoin(promoPrices, eq(promoPrices.menuItemId, menuItems.id))
+      .where(where).orderBy(asc(menuItems.name), asc(menuItems.id)).limit(limit).offset(offset);
+    const items = await Promise.all(rows.map(async r => ({ ...r.menu, promoPrice: r.promoPrice, options: await getMenuOptions(r.menu.id) })));
+    return { items, total: await count(menuItems, where), byBrand: await byBrand(menuItems), limit, offset };
+  }
+  if (entity === "outlets") {
+    const where = brand ? eq(outlets.brandId, brand) : undefined;
+    const items = await db.select().from(outlets).where(where).orderBy(asc(outlets.name), asc(outlets.id)).limit(limit).offset(offset);
+    return { items, total: await count(outlets, where), byBrand: await byBrand(outlets), limit, offset };
+  }
+  if (entity === "partners") {
+    const items = await db.select().from(partnerCompanies).orderBy(asc(partnerCompanies.name), asc(partnerCompanies.id)).limit(limit).offset(offset);
+    return { items, total: (await db.select({ n: sql<number>`count(*)::int` }).from(partnerCompanies))[0].n, limit, offset };
+  }
+  if (entity === "option-groups") return all(await db.select().from(optionGroups).orderBy(asc(optionGroups.sortOrder), asc(optionGroups.id)));
+  if (entity === "option-choices") return all(await db.select().from(optionChoices).orderBy(asc(optionChoices.sortOrder), asc(optionChoices.id)));
   const rows = await db.select().from(paymentAccounts).orderBy(asc(paymentAccounts.sortOrder), asc(paymentAccounts.id));
-  return rows.map(a => ({ ...a, qrisImagePath: undefined, hasQris: !!a.qrisImagePath, accountNo: a.accountNo ? "••••" + a.accountNo.slice(-4) : null }));
+  return all(rows.map(a => ({ ...a, qrisImagePath: undefined, hasQris: !!a.qrisImagePath, accountNo: a.accountNo ? "••••" + a.accountNo.slice(-4) : null })));
 }
 
 export async function saveData(entity: string, id: string | null, b: Input) {
@@ -47,7 +66,7 @@ export async function saveData(entity: string, id: string | null, b: Input) {
     if (website) {
       try { if (!["http:", "https:"].includes(new URL(website).protocol)) throw new Error(); } catch { throw bad("website", "URL http(s) wajib"); }
     }
-    const values = { name, phone, website, isActive: b.optBool("isActive") ?? true };
+    const values = { name, phone, website, notes: b.optStr("notes", 500), isActive: b.optBool("isActive") ?? true };
     return db.transaction(async tx => {
       if (id) {
         const [p] = await tx.select().from(partnerCompanies).where(eq(partnerCompanies.id, id)).for("update");
@@ -81,14 +100,28 @@ async function saveSettings(b: Input) {
   if (!/^([01]\d|2[0-3]):[0-5]\d(?::00)?$/.test(openAt) || !/^([01]\d|2[0-3]):[0-5]\d(?::00)?$/.test(closeAt) || openAt >= closeAt) throw bad("hours", "Jam HH:mm valid, buka sebelum tutup");
   let adminWa: string;
   try { adminWa = normalizePhone(b.str("adminWa", 10, 15)); } catch { throw bad("adminWa", "Nomor tidak valid"); }
-  const values = { status, openAt, closeAt, adminWa, serviceFee: b.int("serviceFee", 0, moneyMax), maxCups: b.int("maxCups", 1, 20), paymentWindowMin: b.int("paymentWindowMin", 5, 120), checkoutCutoffMin: b.int("checkoutCutoffMin", 0, 120), verifyEtaMin: b.int("verifyEtaMin", 1, 60), closedMessage: b.optStr("closedMessage", 500), useUniqueCode: false };
+  const values = { status, openAt, closeAt, adminWa, serviceFee: b.int("serviceFee", 0, moneyMax), maxCups: b.int("maxCups", 1, 20), paymentWindowMin: b.int("paymentWindowMin", 5, 120), checkoutCutoffMin: b.int("checkoutCutoffMin", 0, 120), verifyEtaMin: b.int("verifyEtaMin", 1, 60), closedMessage: b.optStr("closedMessage", 500), useUniqueCode: false, autoSchedule: b.optBool("autoSchedule") ?? false };
+  // schedule: [{day:0-6, isClosed?, openAt?, closeAt?}]; hari tanpa entri memakai jam default. Dikirim = ganti seluruh jadwal.
+  const schedule = b.has("schedule") ? b.arr("schedule", 7).map(raw => {
+    const c = asInput(raw, "schedule"), day = c.int("day", 0, 6), isClosed = c.optBool("isClosed") ?? false;
+    if (isClosed) return { day, isClosed, openAt: null, closeAt: null };
+    const o = c.str("openAt", 5, 8), cl = c.str("closeAt", 5, 8);
+    if (!HHMM.test(o) || !HHMM.test(cl) || o >= cl) throw bad("schedule", "Jam HH:mm valid, buka sebelum tutup");
+    return { day, isClosed, openAt: o, closeAt: cl };
+  }) : null;
+  if (schedule && new Set(schedule.map(r => r.day)).size !== schedule.length) throw bad("schedule", "Hari duplikat");
   return db.transaction(async tx => {
     // Same lock as QRIS activation/deactivation: cannot open store with no active QRIS.
     await tx.execute(sql`select pg_advisory_xact_lock(9473102)`);
     if (status === "OPEN" && !(await tx.select().from(paymentAccounts).where(and(eq(paymentAccounts.isActive, true), eq(paymentAccounts.type, "QRIS_STATIC"))).limit(1)).length) throw new ApiError(422, "PAYMENT_NOT_READY", "QRIS aktif wajib sebelum toko buka");
-    const [row] = await tx.update(storeSettings).set(values).where(eq(storeSettings.id, 1)).returning();
-    if (!row) throw NOT_FOUND;
-    return row;
+    const [cur] = await tx.select({ status: storeSettings.status }).from(storeSettings).where(eq(storeSettings.id, 1)).for("update");
+    if (!cur) throw NOT_FOUND;
+    const [row] = await tx.update(storeSettings).set({ ...values, ...(cur.status !== status ? { statusChangedAt: sql`now()` } : {}) }).where(eq(storeSettings.id, 1)).returning();
+    if (schedule) {
+      await tx.delete(storeSchedule);
+      if (schedule.length) await tx.insert(storeSchedule).values(schedule);
+    }
+    return { ...row, schedule: await tx.select().from(storeSchedule).orderBy(asc(storeSchedule.day)) };
   });
 }
 

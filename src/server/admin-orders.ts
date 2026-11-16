@@ -18,6 +18,11 @@ export async function listOrders(sp: URLSearchParams) {
   // Angka saja = potongan nomor HP: 08xx -> 628xx, cocok sebagian (admin sering ketik sebagian nomor).
   const digits = q && /^\d+$/.test(q) ? q.replace(/^0/, "62") : null;
   const search = q ? or(ilike(orders.orderCode, like!), ilike(orders.queueNumber, like!), ilike(orders.customerName, like!), digits ? ilike(orders.customerPhone, `%${digits}%`) : undefined) : undefined;
+  // counts: per status, mengikuti pencarian q tetapi bukan filter status (untuk chip filter); total mengikuti keduanya.
+  const countRows = await db.select({ status: orders.status, n: sql<number>`count(*)::int` }).from(orders).where(search).groupBy(orders.status);
+  const counts: Record<string, number> = { ALL: 0 };
+  for (const r of countRows) { counts[r.status] = r.n; counts.ALL += r.n; }
+  const total = status ? counts[status] ?? 0 : counts.ALL;
   const rows = await db.select({
     id: orders.id, orderCode: orders.orderCode, status: orders.status, customerName: orders.customerName, customerPhone: orders.customerPhone,
     queueNumber: orders.queueNumber, brand: brands.name, outlet: outlets.name, total: orders.total,
@@ -25,7 +30,7 @@ export async function listOrders(sp: URLSearchParams) {
   }).from(orders).innerJoin(outlets, eq(outlets.id, orders.outletId)).innerJoin(brands, eq(brands.id, outlets.brandId))
     .where(and(status ? eq(orders.status, status) : undefined, search))
     .orderBy(status === "PAID" || status === "PROCESSING" ? asc(orders.paidAt) : desc(orders.createdAt), asc(orders.id)).limit(limit).offset(offset);
-  return { orders: rows, limit, offset };
+  return { orders: rows, total, counts, limit, offset };
 }
 
 export async function adminOrderView(id: string) {
@@ -142,4 +147,23 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
     if (rel && !committed) await removeStored(rel);
     throw e;
   }
+}
+
+/** Ringkasan dashboard. range: today | 7d | month (hari Jakarta). Omzet = order terbayar menurut paid_at; hitungan status menurut created_at. */
+export async function dashboard(sp: URLSearchParams) {
+  const range = new Input(Object.fromEntries(sp)).has("range") ? new Input(Object.fromEntries(sp)).oneOf("range", ["today", "7d", "month"] as const) : "today";
+  const day = sql`date_trunc('day', now() AT TIME ZONE 'Asia/Jakarta')`;
+  const from = range === "today" ? day : range === "7d" ? sql`${day} - interval '6 days'` : sql`date_trunc('month', now() AT TIME ZONE 'Asia/Jakarta')`;
+  const local = (c: unknown) => sql`(${c} AT TIME ZONE 'Asia/Jakarta')`;
+  const [rev] = await db.select({ revenue: sql<number>`coalesce(sum(${orders.total}), 0)::int`, paidCount: sql<number>`count(*)::int` }).from(orders)
+    .where(and(inArray(orders.status, ["PAID", "PROCESSING", "DONE"]), sql`${local(orders.paidAt)} >= ${from}`));
+  const byStatus = Object.fromEntries((await db.select({ status: orders.status, n: sql<number>`count(*)::int` }).from(orders)
+    .where(sql`${local(orders.createdAt)} >= ${from}`).groupBy(orders.status)).map(r => [r.status, r.n]));
+  const n = (k: string) => (byStatus[k] as number | undefined) ?? 0;
+  return {
+    range, revenue: rev.revenue, paidCount: rev.paidCount,
+    unpaid: { total: n("PENDING_PAYMENT") + n("PROOF_SENT") + n("VERIFYING"), awaitingProof: n("PENDING_PAYMENT"), needsCheck: n("PROOF_SENT") + n("VERIFYING") },
+    processing: { total: n("PAID") + n("PROCESSING"), orderedToPartner: n("PAID"), inProgress: n("PROCESSING") },
+    done: n("DONE"), byStatus,
+  };
 }
