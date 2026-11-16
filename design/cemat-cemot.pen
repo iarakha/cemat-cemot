@@ -7247,9 +7247,1823 @@
       "name": "S03 Opsi Menu (sheet)",
       "clip": true,
       "width": 390,
-      "fill": "#281d2b66",
+      "fill": "$background",
       "layout": "vertical",
       "children": [
+        {
+          "type": "frame",
+          "id": "lgCnO",
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 0,
+          "name": "Menu di belakang (dim)",
+          "clip": true,
+          "width": 390,
+          "fill": "$card",
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "grL3E",
+              "name": "Header",
+              "width": "fill_container",
+              "fill": "$card",
+              "stroke": "$border",
+              "strokeWidth": {
+                "bottom": 1
+              },
+              "layout": "vertical",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "o9RWR8",
+                  "name": "Status Bar",
+                  "width": "fill_container",
+                  "height": 54,
+                  "padding": [
+                    0,
+                    28
+                  ],
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "CLxi1",
+                      "name": "9:41",
+                      "fill": "$foreground",
+                      "content": "9:41",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "es5ub",
+                      "name": "Status Icons",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "UeRvr",
+                          "name": "wifi",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "wifi",
+                          "library": "lucide",
+                          "fill": "$foreground"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "mdIzA",
+                          "name": "battery-full",
+                          "width": 22,
+                          "height": 22,
+                          "icon": "battery-full",
+                          "library": "lucide",
+                          "fill": "$foreground"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "U881BJ",
+                  "name": "Nav",
+                  "width": "fill_container",
+                  "height": 44,
+                  "gap": 8,
+                  "padding": [
+                    0,
+                    20
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon",
+                      "id": "B9fgn",
+                      "name": "chevron-left",
+                      "width": 24,
+                      "height": 24,
+                      "icon": "chevron-left",
+                      "library": "lucide",
+                      "fill": "$foreground"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "NCOSm",
+                      "name": "Wordmark",
+                      "width": "fill_container",
+                      "gap": 8,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "rectangle",
+                          "id": "hMNAK",
+                          "name": "Logo mark",
+                          "fill": {
+                            "type": "image",
+                            "enabled": true,
+                            "url": "images/logo-mark.png",
+                            "mode": "contain"
+                          },
+                          "width": 34,
+                          "height": 32
+                        },
+                        {
+                          "type": "text",
+                          "id": "O5Ozo",
+                          "name": "CematCemot",
+                          "fill": "$foreground",
+                          "content": "CematCemot",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 18,
+                          "fontWeight": "900"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "og18F",
+                      "name": "Bag",
+                      "width": 44,
+                      "height": 44,
+                      "justifyContent": "center",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "sj2bg",
+                          "name": "shopping-bag",
+                          "width": 24,
+                          "height": 24,
+                          "icon": "shopping-bag",
+                          "library": "lucide",
+                          "fill": "$foreground"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "CDBBn",
+              "name": "Content",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 20,
+              "padding": [
+                20,
+                20,
+                110,
+                20
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "bLT9O",
+                  "name": "Outlet Header",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "u16q8s",
+                      "name": "Fore Plaza Senayan",
+                      "fill": "$foreground",
+                      "content": "Fore Plaza Senayan",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 28,
+                      "fontWeight": "800",
+                      "letterSpacing": -0.4
+                    },
+                    {
+                      "type": "frame",
+                      "id": "GbMSW",
+                      "name": "Meta",
+                      "width": "fill_container",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "f3P6Ah",
+                          "name": "map-pin",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "map-pin",
+                          "library": "lucide",
+                          "fill": "$muted-foreground"
+                        },
+                        {
+                          "type": "text",
+                          "id": "a5K0r",
+                          "name": "0,4 km · buka 08.00–21.0",
+                          "fill": "$muted-foreground",
+                          "content": "0,4 km · buka 08.00–23.00",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 13,
+                          "fontWeight": "500"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "GgdZE",
+                  "name": "Category Chips",
+                  "width": "fill_container",
+                  "gap": 6,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "oBlPD",
+                      "name": "Chip Semua",
+                      "height": 36,
+                      "fill": "$foreground",
+                      "cornerRadius": 18,
+                      "padding": [
+                        0,
+                        13
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Xs6vd",
+                          "name": "Semua",
+                          "fill": "$card",
+                          "content": "Semua",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "py63d",
+                      "name": "Chip Kopi Susu",
+                      "height": 36,
+                      "fill": "$secondary",
+                      "cornerRadius": 18,
+                      "padding": [
+                        0,
+                        13
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "C33lY",
+                          "name": "Kopi Susu",
+                          "fill": "$secondary-foreground",
+                          "content": "Kopi Susu",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Gl7vF",
+                      "name": "Chip Kopi",
+                      "height": 36,
+                      "fill": "$secondary",
+                      "cornerRadius": 18,
+                      "padding": [
+                        0,
+                        13
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "N8IEhM",
+                          "name": "Kopi",
+                          "fill": "$secondary-foreground",
+                          "content": "Kopi",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Y4jnCg",
+                      "name": "Chip Non-Kopi",
+                      "height": 36,
+                      "fill": "$secondary",
+                      "cornerRadius": 18,
+                      "padding": [
+                        0,
+                        13
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "BA9SR",
+                          "name": "Non-Kopi",
+                          "fill": "$secondary-foreground",
+                          "content": "Non-Kopi",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 14,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "S0Lox",
+                  "name": "Best Seller Header",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "PeW08",
+                      "name": "Title Group",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "shTKU",
+                          "name": "flame",
+                          "width": 20,
+                          "height": 20,
+                          "icon": "flame",
+                          "library": "lucide",
+                          "fill": "$price"
+                        },
+                        {
+                          "type": "text",
+                          "id": "biYAs",
+                          "name": "Best seller",
+                          "fill": "$foreground",
+                          "content": "Best seller",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 22,
+                          "fontWeight": "800",
+                          "letterSpacing": -0.2
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "pWe3a",
+                      "name": "Lihat Semua",
+                      "gap": 2,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "pco6z",
+                          "name": "Lihat semua",
+                          "fill": "$price",
+                          "content": "Lihat semua",
+                          "fontFamily": "$font-sans",
+                          "fontSize": 14,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "dmehX",
+                          "name": "chevron-right",
+                          "width": 16,
+                          "height": 16,
+                          "icon": "chevron-right",
+                          "library": "lucide",
+                          "fill": "$price"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "lhvpn",
+                  "name": "Best Seller Carousel",
+                  "clip": true,
+                  "width": 370,
+                  "height": 96,
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Q8y6RM",
+                      "name": "Card Aren Latte",
+                      "clip": true,
+                      "width": 252,
+                      "height": 96,
+                      "fill": "$card",
+                      "cornerRadius": 14,
+                      "stroke": "$border",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "kpQga",
+                          "name": "Photo Area",
+                          "width": 92,
+                          "height": 96,
+                          "fill": "$secondary",
+                          "layout": "none",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "jHTth",
+                              "layoutPosition": "absolute",
+                              "x": 26,
+                              "y": 28,
+                              "name": "coffee",
+                              "opacity": 0.9,
+                              "width": 40,
+                              "height": 40,
+                              "icon": "coffee",
+                              "library": "lucide",
+                              "fill": "$muted-foreground"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "lg3gR",
+                              "layoutPosition": "absolute",
+                              "x": 6,
+                              "y": 6,
+                              "name": "Rank Badge",
+                              "height": 20,
+                              "fill": "$foreground",
+                              "cornerRadius": 10,
+                              "padding": [
+                                0,
+                                7
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "gI0I3",
+                                  "name": "#1",
+                                  "fill": "$card",
+                                  "content": "#1",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "xDBfc",
+                          "name": "Info",
+                          "width": "fill_container",
+                          "height": 96,
+                          "layout": "vertical",
+                          "padding": [
+                            10,
+                            12
+                          ],
+                          "justifyContent": "space_between",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "S490hd",
+                              "name": "Title",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 1,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "lumWm",
+                                  "name": "Terjual 320+",
+                                  "fill": "$muted-foreground",
+                                  "content": "Terjual 320+",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Je0Q7",
+                                  "name": "Aren Latte",
+                                  "fill": "$foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Aren Latte",
+                                  "lineHeight": 1.2,
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 15,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "jKtSv",
+                              "name": "Prices",
+                              "width": "fill_container",
+                              "gap": 6,
+                              "alignItems": "end",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "avPzv",
+                                  "name": "Rp23.200",
+                                  "fill": "$price",
+                                  "content": "Rp23.200",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 15,
+                                  "fontWeight": "800"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "H8yCqG",
+                                  "name": "Rp29.000",
+                                  "fill": "$muted-foreground",
+                                  "content": "Rp29.000",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "id": "D10GFn",
+                                  "layoutPosition": "absolute",
+                                  "x": 78,
+                                  "y": 13,
+                                  "name": "Garis coret harga normal",
+                                  "fill": "$muted-foreground",
+                                  "width": 51,
+                                  "height": 1
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "INoOQ",
+                      "name": "Card Butterscotch Latte",
+                      "clip": true,
+                      "width": 252,
+                      "height": 96,
+                      "fill": "$card",
+                      "cornerRadius": 14,
+                      "stroke": "$border",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "SPfuF",
+                          "name": "Photo Area",
+                          "width": 92,
+                          "height": 96,
+                          "fill": "$accent",
+                          "layout": "none",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "x9YrC",
+                              "layoutPosition": "absolute",
+                              "x": 26,
+                              "y": 28,
+                              "name": "cup-soda",
+                              "opacity": 0.9,
+                              "width": 40,
+                              "height": 40,
+                              "icon": "cup-soda",
+                              "library": "lucide",
+                              "fill": "$muted-foreground"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "C5bqg",
+                              "layoutPosition": "absolute",
+                              "x": 6,
+                              "y": 6,
+                              "name": "Rank Badge",
+                              "height": 20,
+                              "fill": "$foreground",
+                              "cornerRadius": 10,
+                              "padding": [
+                                0,
+                                7
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "YIhnM",
+                                  "name": "#2",
+                                  "fill": "$card",
+                                  "content": "#2",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "fhgHK",
+                          "name": "Info",
+                          "width": "fill_container",
+                          "height": 96,
+                          "layout": "vertical",
+                          "padding": [
+                            10,
+                            12
+                          ],
+                          "justifyContent": "space_between",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "nJ4FF",
+                              "name": "Title",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 1,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "r4SUlX",
+                                  "name": "Terjual 210+",
+                                  "fill": "$muted-foreground",
+                                  "content": "Terjual 210+",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "dymJW",
+                                  "name": "Butterscotch Latte",
+                                  "fill": "$foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Butterscotch Latte",
+                                  "lineHeight": 1.2,
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 15,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "FudHg",
+                              "name": "Prices",
+                              "width": "fill_container",
+                              "gap": 6,
+                              "alignItems": "end",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "xG9RB",
+                                  "name": "Rp31.000",
+                                  "fill": "$price",
+                                  "content": "Rp31.000",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 15,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "R2pFV",
+                      "name": "Card Americano",
+                      "clip": true,
+                      "width": 252,
+                      "height": 96,
+                      "fill": "$card",
+                      "cornerRadius": 14,
+                      "stroke": "$border",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "kSeiw",
+                          "name": "Photo Area",
+                          "width": 92,
+                          "height": 96,
+                          "fill": "$muted",
+                          "layout": "none",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "JaSOq",
+                              "layoutPosition": "absolute",
+                              "x": 26,
+                              "y": 28,
+                              "name": "coffee",
+                              "opacity": 0.9,
+                              "width": 40,
+                              "height": 40,
+                              "icon": "coffee",
+                              "library": "lucide",
+                              "fill": "$muted-foreground"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "WPMam",
+                              "layoutPosition": "absolute",
+                              "x": 6,
+                              "y": 6,
+                              "name": "Rank Badge",
+                              "height": 20,
+                              "fill": "$foreground",
+                              "cornerRadius": 10,
+                              "padding": [
+                                0,
+                                7
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "mNt9u",
+                                  "name": "#3",
+                                  "fill": "$card",
+                                  "content": "#3",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "mBEHk",
+                          "name": "Info",
+                          "width": "fill_container",
+                          "height": 96,
+                          "layout": "vertical",
+                          "padding": [
+                            10,
+                            12
+                          ],
+                          "justifyContent": "space_between",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "ZN5vt",
+                              "name": "Title",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 1,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "byRCg",
+                                  "name": "Terjual 180+",
+                                  "fill": "$muted-foreground",
+                                  "content": "Terjual 180+",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "O24p8y",
+                                  "name": "Americano",
+                                  "fill": "$foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Americano",
+                                  "lineHeight": 1.2,
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 15,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "NkPfA",
+                              "name": "Prices",
+                              "width": "fill_container",
+                              "gap": 6,
+                              "alignItems": "end",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "GTwLl",
+                                  "name": "Rp24.000",
+                                  "fill": "$price",
+                                  "content": "Rp24.000",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 15,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "S0L36",
+                      "name": "Card Cappuccino",
+                      "clip": true,
+                      "width": 252,
+                      "height": 96,
+                      "fill": "$card",
+                      "cornerRadius": 14,
+                      "stroke": "$border",
+                      "strokeWidth": 1,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "kaWh3",
+                          "name": "Photo Area",
+                          "width": 92,
+                          "height": 96,
+                          "fill": "$secondary",
+                          "layout": "none",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "PLw3q",
+                              "layoutPosition": "absolute",
+                              "x": 26,
+                              "y": 28,
+                              "name": "coffee",
+                              "opacity": 0.9,
+                              "width": 40,
+                              "height": 40,
+                              "icon": "coffee",
+                              "library": "lucide",
+                              "fill": "$muted-foreground"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "NIjJ8",
+                              "layoutPosition": "absolute",
+                              "x": 6,
+                              "y": 6,
+                              "name": "Rank Badge",
+                              "height": 20,
+                              "fill": "$foreground",
+                              "cornerRadius": 10,
+                              "padding": [
+                                0,
+                                7
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "HQSRu",
+                                  "name": "#4",
+                                  "fill": "$card",
+                                  "content": "#4",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "PYzQ4",
+                          "name": "Info",
+                          "width": "fill_container",
+                          "height": 96,
+                          "layout": "vertical",
+                          "padding": [
+                            10,
+                            12
+                          ],
+                          "justifyContent": "space_between",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "H9zUn",
+                              "name": "Title",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 1,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "oaU34",
+                                  "name": "Terjual 140+",
+                                  "fill": "$muted-foreground",
+                                  "content": "Terjual 140+",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 11,
+                                  "fontWeight": "500"
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "JmQv4",
+                                  "name": "Cappuccino",
+                                  "fill": "$foreground",
+                                  "textGrowth": "fixed-width",
+                                  "width": "fill_container",
+                                  "content": "Cappuccino",
+                                  "lineHeight": 1.2,
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 15,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "QInah",
+                              "name": "Prices",
+                              "width": "fill_container",
+                              "gap": 6,
+                              "alignItems": "end",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "kASI9",
+                                  "name": "Rp30.000",
+                                  "fill": "$price",
+                                  "content": "Rp30.000",
+                                  "fontFamily": "$font-sans",
+                                  "fontSize": 15,
+                                  "fontWeight": "800"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "l6jVPW",
+                  "name": "Page Dots",
+                  "width": "fill_container",
+                  "gap": 6,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 3,
+                      "id": "l4rHrs",
+                      "name": "Dot 1",
+                      "fill": "$primary",
+                      "width": 20,
+                      "height": 6
+                    },
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 3,
+                      "id": "Q18XF",
+                      "name": "Dot 2",
+                      "fill": "$border",
+                      "width": 6,
+                      "height": 6
+                    },
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 3,
+                      "id": "R4yrM0",
+                      "name": "Dot 3",
+                      "fill": "$border",
+                      "width": 6,
+                      "height": 6
+                    },
+                    {
+                      "type": "rectangle",
+                      "cornerRadius": 3,
+                      "id": "hPm56",
+                      "name": "Dot 4",
+                      "fill": "$border",
+                      "width": 6,
+                      "height": 6
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Uwo7t",
+                  "name": "Section Header",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "vEP4F",
+                      "name": "Semua menu",
+                      "fill": "$foreground",
+                      "content": "Semua menu",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 22,
+                      "fontWeight": "800",
+                      "letterSpacing": -0.2
+                    },
+                    {
+                      "type": "text",
+                      "id": "e4hC15",
+                      "name": "5 menu",
+                      "fill": "$muted-foreground",
+                      "content": "5 menu",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "DBHcz",
+                  "name": "Menu Grid",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 12,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "P5wNvC",
+                      "name": "Row 1",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Q6MAW",
+                          "name": "Card Aren Latte",
+                          "clip": true,
+                          "width": "fill_container",
+                          "fill": "$card",
+                          "cornerRadius": 16,
+                          "stroke": "$border",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "dIXDl",
+                              "name": "Photo Area",
+                              "width": "fill_container",
+                              "height": 132,
+                              "fill": "$secondary",
+                              "layout": "none",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "w4RIM",
+                                  "layoutPosition": "absolute",
+                                  "x": 55.5,
+                                  "y": 38,
+                                  "name": "coffee",
+                                  "opacity": 0.9,
+                                  "width": 56,
+                                  "height": 56,
+                                  "icon": "coffee",
+                                  "library": "lucide",
+                                  "fill": "$muted-foreground"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "cvV1Q",
+                                  "layoutPosition": "absolute",
+                                  "x": 10,
+                                  "y": 10,
+                                  "name": "Hemat 31% Badge",
+                                  "height": 24,
+                                  "fill": "$card",
+                                  "cornerRadius": 12,
+                                  "padding": [
+                                    0,
+                                    10
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "cM7Nj",
+                                      "name": "Hemat 20%",
+                                      "fill": "$price",
+                                      "content": "Hemat 20%",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 12,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "JfJMh",
+                              "name": "Info",
+                              "width": "fill_container",
+                              "height": 104,
+                              "layout": "vertical",
+                              "padding": [
+                                12,
+                                14,
+                                14,
+                                14
+                              ],
+                              "justifyContent": "space_between",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "fiq7h",
+                                  "name": "Title",
+                                  "width": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "nQJjw",
+                                      "name": "Kopi Susu",
+                                      "fill": "$muted-foreground",
+                                      "content": "Kopi Susu",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "i7vzsE",
+                                      "name": "Aren Latte",
+                                      "fill": "$foreground",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "Aren Latte",
+                                      "lineHeight": 1.2,
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 16,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "j5zAb",
+                                  "name": "Prices",
+                                  "width": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "dNp29",
+                                      "name": "Rp23.200",
+                                      "fill": "$price",
+                                      "content": "Rp23.200",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 17,
+                                      "fontWeight": "800"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "E18QZ",
+                                      "name": "Rp29.000",
+                                      "fill": "$muted-foreground",
+                                      "content": "Rp29.000",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    },
+                                    {
+                                      "type": "rectangle",
+                                      "id": "fTDvH",
+                                      "layoutPosition": "absolute",
+                                      "x": 0,
+                                      "y": 33,
+                                      "name": "Garis coret harga normal",
+                                      "fill": "$muted-foreground",
+                                      "width": 55,
+                                      "height": 1
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "gugpF",
+                          "name": "Card Butterscotch Latte",
+                          "clip": true,
+                          "width": "fill_container",
+                          "fill": "$card",
+                          "cornerRadius": 16,
+                          "stroke": "$border",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "nWy1k",
+                              "name": "Photo Area",
+                              "width": "fill_container",
+                              "height": 132,
+                              "fill": "$accent",
+                              "layout": "none",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "G9ooiU",
+                                  "layoutPosition": "absolute",
+                                  "x": 55.5,
+                                  "y": 38,
+                                  "name": "cup-soda",
+                                  "opacity": 0.9,
+                                  "width": 56,
+                                  "height": 56,
+                                  "icon": "cup-soda",
+                                  "library": "lucide",
+                                  "fill": "$muted-foreground"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "XgVWP",
+                              "name": "Info",
+                              "width": "fill_container",
+                              "height": 104,
+                              "layout": "vertical",
+                              "padding": [
+                                12,
+                                14,
+                                14,
+                                14
+                              ],
+                              "justifyContent": "space_between",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "tXVlp",
+                                  "name": "Title",
+                                  "width": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "CeyaN",
+                                      "name": "Kopi Susu",
+                                      "fill": "$muted-foreground",
+                                      "content": "Kopi Susu",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "e2HBwB",
+                                      "name": "Butterscotch Latte",
+                                      "fill": "$foreground",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "Butterscotch Latte",
+                                      "lineHeight": 1.2,
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 16,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "OEhfT",
+                                  "name": "Prices",
+                                  "width": "fill_container",
+                                  "gap": 8,
+                                  "alignItems": "end",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "gBrJP",
+                                      "name": "Rp31.000",
+                                      "fill": "$price",
+                                      "content": "Rp31.000",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 17,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "PP3ra",
+                      "name": "Row 2",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Zrmsc",
+                          "name": "Card Americano",
+                          "clip": true,
+                          "width": "fill_container",
+                          "fill": "$card",
+                          "cornerRadius": 16,
+                          "stroke": "$border",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "j85qAj",
+                              "name": "Photo Area",
+                              "width": "fill_container",
+                              "height": 132,
+                              "fill": "$muted",
+                              "layout": "none",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "q4fQ9",
+                                  "layoutPosition": "absolute",
+                                  "x": 55.5,
+                                  "y": 38,
+                                  "name": "coffee",
+                                  "opacity": 0.9,
+                                  "width": 56,
+                                  "height": 56,
+                                  "icon": "coffee",
+                                  "library": "lucide",
+                                  "fill": "$muted-foreground"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "U3Evz4",
+                              "name": "Info",
+                              "width": "fill_container",
+                              "height": 104,
+                              "layout": "vertical",
+                              "padding": [
+                                12,
+                                14,
+                                14,
+                                14
+                              ],
+                              "justifyContent": "space_between",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "wcY6n",
+                                  "name": "Title",
+                                  "width": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "T9F2vm",
+                                      "name": "Kopi",
+                                      "fill": "$muted-foreground",
+                                      "content": "Kopi",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "Z8PY55",
+                                      "name": "Americano",
+                                      "fill": "$foreground",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "Americano",
+                                      "lineHeight": 1.2,
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 16,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "zQSWy",
+                                  "name": "Prices",
+                                  "width": "fill_container",
+                                  "gap": 8,
+                                  "alignItems": "end",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "f47CHb",
+                                      "name": "Rp24.000",
+                                      "fill": "$price",
+                                      "content": "Rp24.000",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 17,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "hITdf",
+                          "name": "Card Cappuccino",
+                          "clip": true,
+                          "width": "fill_container",
+                          "fill": "$card",
+                          "cornerRadius": 16,
+                          "stroke": "$border",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "ypl2g",
+                              "name": "Photo Area",
+                              "width": "fill_container",
+                              "height": 132,
+                              "fill": "$secondary",
+                              "layout": "none",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "i9WXM",
+                                  "layoutPosition": "absolute",
+                                  "x": 55.5,
+                                  "y": 38,
+                                  "name": "coffee",
+                                  "opacity": 0.9,
+                                  "width": 56,
+                                  "height": 56,
+                                  "icon": "coffee",
+                                  "library": "lucide",
+                                  "fill": "$muted-foreground"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "zYA8T",
+                              "name": "Info",
+                              "width": "fill_container",
+                              "height": 104,
+                              "layout": "vertical",
+                              "padding": [
+                                12,
+                                14,
+                                14,
+                                14
+                              ],
+                              "justifyContent": "space_between",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "IgmlT",
+                                  "name": "Title",
+                                  "width": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "W5FDI",
+                                      "name": "Kopi",
+                                      "fill": "$muted-foreground",
+                                      "content": "Kopi",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "lcvMj",
+                                      "name": "Cappuccino",
+                                      "fill": "$foreground",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "Cappuccino",
+                                      "lineHeight": 1.2,
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 16,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "TLYJZ",
+                                  "name": "Prices",
+                                  "width": "fill_container",
+                                  "gap": 8,
+                                  "alignItems": "end",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "W4gg9S",
+                                      "name": "Rp30.000",
+                                      "fill": "$price",
+                                      "content": "Rp30.000",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 17,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "rhV5S",
+                      "name": "Row 3",
+                      "width": "fill_container",
+                      "gap": 12,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "Y7DlLb",
+                          "name": "Card Matcha Latte",
+                          "opacity": 0.6,
+                          "clip": true,
+                          "width": "fill_container",
+                          "fill": "$card",
+                          "cornerRadius": 16,
+                          "stroke": "$border",
+                          "strokeWidth": 1,
+                          "layout": "vertical",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "bjSbT",
+                              "name": "Photo Area",
+                              "width": "fill_container",
+                              "height": 132,
+                              "fill": "$muted",
+                              "layout": "none",
+                              "children": [
+                                {
+                                  "type": "icon",
+                                  "id": "dOoII",
+                                  "layoutPosition": "absolute",
+                                  "x": 55.5,
+                                  "y": 38,
+                                  "name": "leaf",
+                                  "opacity": 0.9,
+                                  "width": 56,
+                                  "height": 56,
+                                  "icon": "leaf",
+                                  "library": "lucide",
+                                  "fill": "$muted-foreground"
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "WefET",
+                                  "layoutPosition": "absolute",
+                                  "x": 10,
+                                  "y": 10,
+                                  "name": "Habis Badge",
+                                  "height": 24,
+                                  "fill": "$foreground",
+                                  "cornerRadius": 12,
+                                  "padding": [
+                                    0,
+                                    10
+                                  ],
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "baMXu",
+                                      "name": "Habis",
+                                      "fill": "$card",
+                                      "content": "Habis",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 12,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "jziR0",
+                              "name": "Info",
+                              "width": "fill_container",
+                              "height": 104,
+                              "layout": "vertical",
+                              "padding": [
+                                12,
+                                14,
+                                14,
+                                14
+                              ],
+                              "justifyContent": "space_between",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "bw2ga",
+                                  "name": "Title",
+                                  "width": "fill_container",
+                                  "layout": "vertical",
+                                  "gap": 2,
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "sigQ7",
+                                      "name": "Non-Kopi",
+                                      "fill": "$muted-foreground",
+                                      "content": "Non-Kopi",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 12,
+                                      "fontWeight": "500"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "pvuHp",
+                                      "name": "Matcha Latte",
+                                      "fill": "$foreground",
+                                      "textGrowth": "fixed-width",
+                                      "width": "fill_container",
+                                      "content": "Matcha Latte",
+                                      "lineHeight": 1.2,
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 16,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "frame",
+                                  "id": "bUb9A",
+                                  "name": "Prices",
+                                  "width": "fill_container",
+                                  "gap": 8,
+                                  "alignItems": "end",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "lSa34",
+                                      "name": "Rp32.000",
+                                      "fill": "$price",
+                                      "content": "Rp32.000",
+                                      "fontFamily": "$font-sans",
+                                      "fontSize": 17,
+                                      "fontWeight": "800"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "MPTQ5",
+                          "name": "Spacer",
+                          "width": "fill_container",
+                          "height": 1
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "zWBcW",
+              "layoutPosition": "absolute",
+              "x": 0,
+              "y": 1250,
+              "name": "Cart Bar",
+              "width": "fill_container(390)",
+              "fill": "$card",
+              "stroke": "$border",
+              "strokeWidth": {
+                "top": 1
+              },
+              "padding": [
+                12,
+                20,
+                28,
+                20
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "P6Az6H",
+                  "name": "Cart Summary",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "YzQcJ",
+                      "name": "2 item",
+                      "fill": "$muted-foreground",
+                      "content": "2 item",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    },
+                    {
+                      "type": "text",
+                      "id": "NArt2",
+                      "name": "Rp47.200",
+                      "fill": "$price",
+                      "content": "Rp47.200",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 17,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "BTisZ",
+                  "name": "Lihat Titipan Button",
+                  "height": 50,
+                  "fill": "$primary",
+                  "cornerRadius": 25,
+                  "padding": [
+                    0,
+                    24
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "YvetU",
+                      "name": "Lihat titipan",
+                      "fill": "$primary-foreground",
+                      "content": "Lihat titipan",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 16,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "rectangle",
+          "id": "SGWxi",
+          "layoutPosition": "absolute",
+          "x": 0,
+          "y": 0,
+          "name": "Scrim Dim",
+          "fill": "#281d2b66",
+          "width": 390,
+          "height": 853
+        },
         {
           "type": "frame",
           "id": "GYtXb",
@@ -7388,7 +9202,7 @@
                           "type": "text",
                           "id": "M8Sup",
                           "name": "Rp23.200",
-                          "rotation": 0.15722514803413107,
+                          "rotation": 0.1572251480341311,
                           "fill": "$price",
                           "content": "Rp23.200",
                           "fontFamily": "$font-sans",
@@ -8824,9 +10638,9 @@
     {
       "type": "frame",
       "id": "G9bmKl",
-      "x": 7983,
-      "y": 0,
-      "name": "S07 Refund (REFUND_REQUESTED)",
+      "x": 0,
+      "y": 7300,
+      "name": "S07 Refund (ARSIP · tidak dipakai)",
       "clip": true,
       "width": 390,
       "fill": "$background",
@@ -9444,6 +11258,21 @@
               ]
             }
           ]
+        },
+        {
+          "type": "text",
+          "id": "Xt4rM",
+          "layoutPosition": "absolute",
+          "x": 60,
+          "y": 340,
+          "name": "Watermark Arsip",
+          "opacity": 0.28,
+          "rotation": -25,
+          "fill": "#B3261E",
+          "content": "ARSIP",
+          "fontFamily": "$font-sans",
+          "fontSize": 96,
+          "fontWeight": "800"
         }
       ]
     },
@@ -18040,7 +19869,7 @@
             {
               "type": "frame",
               "id": "pYpIM",
-              "name": "Konfirmasi pembayaran",
+              "name": "Konfirmasi",
               "width": "fill_container",
               "height": 48,
               "fill": "$primary",
@@ -18057,7 +19886,7 @@
                   "fill": "$primary-foreground",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "Konfirmasi pembayaran",
+                  "content": "Konfirmasi",
                   "textAlign": "center",
                   "fontFamily": "$font-sans",
                   "fontSize": 15,
@@ -18628,7 +20457,7 @@
             {
               "type": "frame",
               "id": "SUUu8",
-              "name": "Konfirmasi pembayaran",
+              "name": "Konfirmasi",
               "width": "fill_container",
               "height": 48,
               "fill": "$primary",
@@ -19933,11 +21762,11 @@
             {
               "type": "text",
               "id": "Gkkfy",
-              "name": "Konfirmasi: pesanan sudah diterima customer? Pilih Ya, sudah diterima atau Kembali.",
+              "name": "Petunjuk tandai selesai",
               "fill": "$muted-foreground",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "Konfirmasi: pesanan sudah diterima customer? Pilih Ya, sudah diterima atau Kembali.",
+              "content": "Tekan Tandai selesai setelah customer menerima pesanan.",
               "fontFamily": "$font-sans",
               "fontSize": 13,
               "fontWeight": "500"
@@ -33134,7 +34963,7 @@
                         {
                           "type": "frame",
                           "id": "nV1Xv",
-                          "name": "Konfirmasi pembayaran",
+                          "name": "Konfirmasi",
                           "width": "fill_container",
                           "height": 48,
                           "fill": "$primary",
@@ -33151,7 +34980,7 @@
                               "fill": "$primary-foreground",
                               "textGrowth": "fixed-width",
                               "width": "fill_container",
-                              "content": "Konfirmasi pembayaran",
+                              "content": "Konfirmasi",
                               "textAlign": "center",
                               "fontFamily": "$font-sans",
                               "fontSize": 15,
@@ -34370,7 +36199,7 @@
                     {
                       "type": "frame",
                       "id": "g9DCRY",
-                      "name": "Konfirmasi pembayaran",
+                      "name": "Konfirmasi",
                       "width": "fill_container",
                       "height": 48,
                       "fill": "$primary",
@@ -38085,11 +39914,11 @@
                     {
                       "type": "text",
                       "id": "C5HzX",
-                      "name": "Konfirmasi: pesanan sudah diterima customer? Pilih Ya, sudah diterima atau Kembali.",
+                      "name": "Petunjuk tandai selesai",
                       "fill": "$muted-foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Konfirmasi: pesanan sudah diterima customer? Pilih Ya, sudah diterima atau Kembali.",
+                      "content": "Tekan Tandai selesai setelah customer menerima pesanan.",
                       "fontFamily": "$font-sans",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -42295,7 +44124,7 @@
                     {
                       "type": "frame",
                       "id": "lf9Qc",
-                      "name": "Konfirmasi pembayaran",
+                      "name": "Konfirmasi",
                       "width": "fill_container",
                       "height": 48,
                       "fill": "$primary",
@@ -42312,7 +44141,7 @@
                           "fill": "$primary-foreground",
                           "textGrowth": "fixed-width",
                           "width": "fill_container",
-                          "content": "Konfirmasi pembayaran",
+                          "content": "Konfirmasi",
                           "textAlign": "center",
                           "fontFamily": "$font-sans",
                           "fontSize": 15,
@@ -43259,7 +45088,7 @@
                     {
                       "type": "frame",
                       "id": "D4Z6J",
-                      "name": "Konfirmasi pembayaran",
+                      "name": "Konfirmasi",
                       "width": "fill_container",
                       "height": 48,
                       "fill": "$primary",
@@ -45894,11 +47723,11 @@
                     {
                       "type": "text",
                       "id": "suQkd",
-                      "name": "Konfirmasi: pesanan sudah diterima customer? Pilih Ya, sudah diterima atau Kembali.",
+                      "name": "Petunjuk tandai selesai",
                       "fill": "$muted-foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Konfirmasi: pesanan sudah diterima customer? Pilih Ya, sudah diterima atau Kembali.",
+                      "content": "Tekan Tandai selesai setelah customer menerima pesanan.",
                       "fontFamily": "$font-sans",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -113360,6 +115189,18 @@
           ]
         }
       ]
+    },
+    {
+      "type": "text",
+      "id": "hEkjG",
+      "x": 0,
+      "y": 7220,
+      "name": "Archive Judul",
+      "fill": "$foreground",
+      "content": "Archive · screen tidak dipakai (refund tidak ada di flow)",
+      "fontFamily": "$font-sans",
+      "fontSize": 28,
+      "fontWeight": "700"
     }
   ],
   "variables": {
