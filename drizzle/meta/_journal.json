@@ -127,6 +127,13 @@
       "when": 1794845211609,
       "tag": "0017_partner_notes_store_schedule",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794861000000,
+      "tag": "0018_store_status_options",
+      "breakpoints": true
     }
   ]
 }

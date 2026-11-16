@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { brands, menuItems, menuItemChoices, optionGroups, optionChoices, outlets, orders, payments, partnerCompanies, paymentAccounts, promoPrices, storeSchedule, storeSettings } from "@/db/schema";
 import { ApiError, bad, Input, NOT_FOUND, asInput, isUuid } from "./http";
 import { normalizePhone } from "@/lib/order-rules";
+import { statusIntentUpdate } from "./store-status";
 import { getMenuOptions } from "@/lib/menu-options";
 import { saveImage, removeStored } from "./files";
 
@@ -95,12 +96,13 @@ export async function saveData(entity: string, id: string | null, b: Input) {
 }
 
 async function saveSettings(b: Input) {
-  const status = b.oneOf("status", ["OPEN", "CLOSED", "BREAK", "PRAYER", "LEAVE"] as const);
+  const statusIntent = b.has("status");
+  const status = statusIntent ? b.oneOf("status", ["OPEN", "CLOSED", "BREAK", "PRAYER", "LEAVE", "OFF", "LUNCH_BREAK"] as const) : null;
   const openAt = b.str("openAt", 5, 8), closeAt = b.str("closeAt", 5, 8);
   if (!/^([01]\d|2[0-3]):[0-5]\d(?::00)?$/.test(openAt) || !/^([01]\d|2[0-3]):[0-5]\d(?::00)?$/.test(closeAt) || openAt >= closeAt) throw bad("hours", "Jam HH:mm valid, buka sebelum tutup");
   let adminWa: string;
   try { adminWa = normalizePhone(b.str("adminWa", 10, 15)); } catch { throw bad("adminWa", "Nomor tidak valid"); }
-  const values = { status, openAt, closeAt, adminWa, serviceFee: b.int("serviceFee", 0, moneyMax), maxCups: b.int("maxCups", 1, 20), paymentWindowMin: b.int("paymentWindowMin", 5, 120), checkoutCutoffMin: b.int("checkoutCutoffMin", 0, 120), verifyEtaMin: b.int("verifyEtaMin", 1, 60), closedMessage: b.optStr("closedMessage", 500), useUniqueCode: false, autoSchedule: b.optBool("autoSchedule") ?? false };
+  const values = { openAt, closeAt, adminWa, serviceFee: b.int("serviceFee", 0, moneyMax), maxCups: b.int("maxCups", 1, 20), paymentWindowMin: b.int("paymentWindowMin", 5, 120), checkoutCutoffMin: b.int("checkoutCutoffMin", 0, 120), verifyEtaMin: b.int("verifyEtaMin", 1, 60), closedMessage: b.optStr("closedMessage", 500), useUniqueCode: false, autoSchedule: b.optBool("autoSchedule") ?? false };
   // schedule: [{day:0-6, isClosed?, openAt?, closeAt?}]; hari tanpa entri memakai jam default. Dikirim = ganti seluruh jadwal.
   const schedule = b.has("schedule") ? b.arr("schedule", 7).map(raw => {
     const c = asInput(raw, "schedule"), day = c.int("day", 0, 6), isClosed = c.optBool("isClosed") ?? false;
@@ -113,10 +115,11 @@ async function saveSettings(b: Input) {
   return db.transaction(async tx => {
     // Same lock as QRIS activation/deactivation: cannot open store with no active QRIS.
     await tx.execute(sql`select pg_advisory_xact_lock(9473102)`);
-    if (status === "OPEN" && !(await tx.select().from(paymentAccounts).where(and(eq(paymentAccounts.isActive, true), eq(paymentAccounts.type, "QRIS_STATIC"))).limit(1)).length) throw new ApiError(422, "PAYMENT_NOT_READY", "QRIS aktif wajib sebelum toko buka");
     const [cur] = await tx.select({ status: storeSettings.status }).from(storeSettings).where(eq(storeSettings.id, 1)).for("update");
     if (!cur) throw NOT_FOUND;
-    const [row] = await tx.update(storeSettings).set({ ...values, ...(cur.status !== status ? { statusChangedAt: sql`now()` } : {}) }).where(eq(storeSettings.id, 1)).returning();
+    const { status: requestedStatus, refreshTimestamp } = statusIntentUpdate(cur.status, status ?? cur.status, statusIntent);
+    if (statusIntent && requestedStatus === "OPEN" && !(await tx.select().from(paymentAccounts).where(and(eq(paymentAccounts.isActive, true), eq(paymentAccounts.type, "QRIS_STATIC"))).limit(1)).length) throw new ApiError(422, "PAYMENT_NOT_READY", "QRIS aktif wajib sebelum toko buka");
+    const [row] = await tx.update(storeSettings).set({ ...values, ...(statusIntent ? { status: requestedStatus } : {}), ...(refreshTimestamp ? { statusChangedAt: sql`now()` } : {}) }).where(eq(storeSettings.id, 1)).returning();
     if (schedule) {
       await tx.delete(storeSchedule);
       if (schedule.length) await tx.insert(storeSchedule).values(schedule);

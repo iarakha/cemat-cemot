@@ -17,7 +17,7 @@ async function call(path: string, status: number, body?: unknown, admin = false,
     ...(body !== undefined && !form ? { "Content-Type": "application/json" } : {}),
     ...(admin ? { Cookie: cookie } : buyerCookie ? { Cookie: buyerCookie } : {}),
   }, body: body === undefined ? undefined : form ? body : JSON.stringify(body) });
-  assert.equal(r.status, status, `${path}: expected ${status}, got ${r.status} ${r.ok ? "" : await r.text()}`);
+  assert.equal(r.status, status, `${path}: expected ${status}, got ${r.status} ${r.ok ? "" : await r.clone().text()}`);
   tests++;
   return r;
 }
@@ -67,6 +67,15 @@ async function main() {
   const token = first.token;
   const [order] = await sql`select id,order_code from orders where tracking_token=${token}`;
   const tracking = await (await call(`/api/pesanan/${token}`,200)).json();
+  assert.equal(tracking.paymentAccounts.length,1);
+  assert.equal(tracking.paymentAccounts[0].id,(await sql`select payment_account_id from payments where order_id=${order.id}`)[0].payment_account_id);
+  const [boundAccount] = await sql`select id from payment_accounts where id=${tracking.paymentAccounts[0].id}`;
+  await sql`update payment_accounts set is_active=false where id=${boundAccount.id}`;
+  const qris = await fetch(base + tracking.paymentAccounts[0].qrisUrl);
+  assert.equal(qris.status,200);tests++;
+  assert.equal((await fetch(`${base}/api/qris/${boundAccount.id}`)).status,404);tests++;
+  await sql`update payment_accounts set is_active=true where id=${boundAccount.id}`;
+  assert.equal(tracking.paymentAccounts[0].qrisUrl.includes('?token='),true);
   assert.equal(tracking.totals.uniqueCode,0);
   assert.ok(tracking.phases.PENDING_PAYMENT);
   const sharp = (await import('sharp')).default;
@@ -109,6 +118,11 @@ async function main() {
   await call(`/api/admin/orders/${order.id}/mark-done`,200,{},true);
   const done = await (await call(`/api/pesanan/${token}`,200)).json();
   assert.equal(done.status,'DONE');
+  const selfRefund = await call(`/api/pesanan/${token}/refund-account`,403,{method:'BANK',provider:'Test Bank',accountNo:'1234567890',accountName:'Test Buyer'});
+  const selfRefundError = await selfRefund.json();
+  assert.equal(selfRefundError.error.code,'SELF_SERVICE_REFUND_DISABLED');
+  assert.match(selfRefundError.error.message,/WhatsApp/);
+  assert.equal((await sql`select refund_account_no from orders where id=${order.id}`)[0].refund_account_no,null);
   assert.deepEqual(done.progress.steps.map((s: {checked:boolean})=>s.checked),[true,true,true,true,true]);
   await call(`/api/admin/orders/${order.id}/mark-done`,200,{},true);
   // total/count list admin + dashboard
@@ -135,6 +149,16 @@ async function main() {
   await put({...settings,autoSchedule:false,schedule:[]});
   assert.equal((await (await call('/api/store',200)).json()).status,'OPEN');
   await call('/api/customer/otp/request',503,{challenge:'opaque'});
+  // Isolated admin refund record path; private account fields stay out of customer tracking and action response.
+  await sql`update orders set status='REFUND_REQUESTED' where id=${order.id}`;
+  await call(`/api/admin/orders/${order.id}/set-refund-account`,401,{method:'BANK',provider:'Test Bank',accountNo:'9876543210',accountName:'Test Buyer'});
+  const recorded = await call(`/api/admin/orders/${order.id}/set-refund-account`,200,{method:'BANK',provider:'Test Bank',accountNo:'9876543210',accountName:'Test Buyer'},true);
+  const recordedBody = await recorded.json();
+  assert.equal(JSON.stringify(recordedBody).includes('9876543210'),false);
+  const customerView = await (await call(`/api/pesanan/${token}`,200)).json();
+  assert.equal(JSON.stringify(customerView).includes('9876543210'),false);
+  await call(`/api/admin/orders/${order.id}/mark-refunded`,200,{note:'Refund processed'},true);
+  assert.equal((await sql`select status from orders where id=${order.id}`)[0].status,'REFUNDED');
   await call('/api/admin/session',204,undefined,true,'DELETE');
   await call('/api/admin/session',401,undefined,true);
   console.log(`api flow passed: ${tests} HTTP assertions, persisted DONE, parallel checkout idempotency`);

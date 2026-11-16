@@ -63,14 +63,14 @@ const MASTERS: [string, boolean, string[]][] = [
   ["Suhu", true, ["Es", "Panas"]],
   ["Ukuran", true, ["Regular", "Large"]],
   ["Gula", true, ["No Sugar", "Less", "Normal", "Extra"]],
-  ["Level Es", true, ["Less", "Normal"]],
+  ["Level Es", true, ["No Ice", "Less", "Normal"]],
 ];
 // Pilihan contoh per menu baru: [grup, label, selisih harga, default]. Large +4.000 hanya contoh.
 const MENU_OPTIONS: [string, string, number, boolean][] = [
   ["Suhu", "Es", 0, true], ["Suhu", "Panas", 0, false],
   ["Ukuran", "Regular", 0, true], ["Ukuran", "Large", 4000, false],
   ["Gula", "Normal", 0, true], ["Gula", "Less", 0, false], ["Gula", "No Sugar", 0, false], ["Gula", "Extra", 0, false],
-  ["Level Es", "Normal", 0, true], ["Level Es", "Less", 0, false],
+  ["Level Es", "No Ice", 0, false], ["Level Es", "Normal", 0, true], ["Level Es", "Less", 0, false],
 ];
 
 async function main() {
@@ -102,6 +102,14 @@ async function main() {
     .onConflictDoNothing();
   const choice = new Map((await tx.select().from(s.optionChoices))
     .map((c) => [`${groups.find((g) => g.id === c.groupId)?.name}:${c.label}`, c]));
+  // Add No Ice only to menus already linked to Level Es; never replace existing choices.
+  const iceGroup = groups.find((g) => g.name === "Level Es")!;
+  const noIce = choice.get("Level Es:No Ice")!;
+  const iceMenus = await tx.selectDistinct({ menuItemId: s.menuItemChoices.menuItemId })
+    .from(s.menuItemChoices).where(sql`${s.menuItemChoices.groupId} = ${iceGroup.id}`);
+  if (iceMenus.length) await tx.insert(s.menuItemChoices).values(iceMenus.map(({ menuItemId }) => ({
+    menuItemId, choiceId: noIce.id, groupId: iceGroup.id, priceDelta: 0, isDefault: false,
+  }))).onConflictDoNothing();
 
   const brandRows = await tx.insert(s.brands)
     .values(BRANDS.map((b, i) => ({ ...b, sortOrder: i })))

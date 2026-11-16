@@ -20,7 +20,7 @@ export const waLink = (wa: string, text: string) => `https://wa.me/${wa}?text=${
 
 // Status toko. Hanya OPEN yang menerima checkout; lainnya tampil sebagai banner ke pembeli.
 export const STORE_STATUS_LABEL = {
-  OPEN: "Buka", CLOSED: "Tutup", BREAK: "Istirahat", PRAYER: "Solat", LEAVE: "Cuti",
+  OPEN: "Buka", CLOSED: "Tutup", BREAK: "Istirahat", PRAYER: "Solat", LEAVE: "Cuti", OFF: "Healing", LUNCH_BREAK: "Makan siang",
 } as const satisfies Record<(typeof storeSettings.$inferSelect)["status"], string>;
 
 export async function getStoreStatus() {

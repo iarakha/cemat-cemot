@@ -56,7 +56,13 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
   const partnerId = paidAmount !== null ? b.uuid("partnerCompanyId") : null;
   const partnerAmount = paidAmount !== null ? b.int("partnerAmount", 0, 2_147_483_647) : null;
   const reason = ["reject-payment", "fail"].includes(action) ? b.str("reason", 1, 300) : null;
+  const refund = action === "set-refund-account" ? {
+    method: b.oneOf("method", ["BANK", "EWALLET"] as const), provider: b.str("provider", 2, 40),
+    accountNo: b.str("accountNo", 5, 30), accountName: b.str("accountName", 2, 60),
+  } : null;
+  if (refund && !/^[0-9]+$/.test(refund.accountNo)) throw new ApiError(400, "INVALID_INPUT", "Nomor rekening hanya boleh berisi digit");
   if (["cancel", "reopen", "revert-confirmation", "mark-refunded"].includes(action) && !note) throw new ApiError(400, "INVALID_INPUT", "Catatan wajib");
+  // Refund details enter only authenticated admin action; never include them in response or event notes.
   let queueNumber: string | undefined;
   if (action === "start-processing" || (isOrderProof && b.has("queueNumber"))) queueNumber = b.str("queueNumber", 1, 64);
   const file = b.file("file");
@@ -127,6 +133,10 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
       } else if (action === "fail") {
         requireStatus(["PAID", "PROCESSING"], ["REFUND_REQUESTED"]);
         await transition(tx, o, "REFUND_REQUESTED", "admin", { ...opts, note: reason });
+      } else if (action === "set-refund-account") {
+        requireStatus(["REFUND_REQUESTED"]);
+        await tx.update(orders).set({ refundMethod: refund!.method, refundProvider: refund!.provider, refundAccountNo: refund!.accountNo, refundAccountName: refund!.accountName }).where(eq(orders.id, id));
+        await addEvent(tx, id, o.status, o.status, "REFUND_ACCOUNT_SET", "admin", adminId);
       } else if (action === "mark-refunded") {
         requireStatus(["REFUND_REQUESTED"], ["REFUNDED"]);
         if (!o.refundAccountNo) throw new ApiError(422, "REFUND_ACCOUNT_REQUIRED", "Rekening refund belum diisi");

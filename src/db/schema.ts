@@ -14,7 +14,7 @@ export const paymentStatus = pgEnum("payment_status", ["PENDING", "PROOF_SENT", 
 // Tipe tujuan bayar. v1 hanya QRIS_STATIC; BANK/EWALLET disiapkan untuk penambahan akun nanti.
 // Status toko jasdor. Hanya OPEN yang menerima checkout.
 // OPEN = buka, CLOSED = tutup, BREAK = istirahat, PRAYER = solat, LEAVE = cuti.
-export const storeStatus = pgEnum("store_status", ["OPEN", "CLOSED", "BREAK", "PRAYER", "LEAVE"]);
+export const storeStatus = pgEnum("store_status", ["OPEN", "CLOSED", "BREAK", "PRAYER", "LEAVE", "OFF", "LUNCH_BREAK"]);
 export const paymentMethod = pgEnum("payment_method", ["BANK", "EWALLET", "QRIS_STATIC"]);
 
 const id = () => uuid("id").primaryKey().defaultRandom();

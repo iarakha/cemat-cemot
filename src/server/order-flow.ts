@@ -1,6 +1,6 @@
 // Inti alur order: transisi status (RND 7.1), checkout, tracking, bukti bayar, refund, kedaluwarsa.
 import { randomBytes } from "node:crypto";
-import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { brands, menuItems, orderCodeCounters, orderEvents, orderItems, orders, outlets, payments, paymentAccounts, promoPrices } from "@/db/schema";
 import { getMenuOptions } from "@/lib/menu-options";
@@ -71,7 +71,13 @@ export async function activePayment(tx: Tx, orderId: string) {
   return p ?? null;
 }
 export async function newPendingPayment(tx: Tx, o: OrderRow) {
-  await tx.insert(payments).values({ orderId: o.id, expectedAmount: o.total, status: "PENDING" });
+  const [acc] = await tx.select().from(paymentAccounts)
+    .where(and(eq(paymentAccounts.isActive, true), eq(paymentAccounts.type, "QRIS_STATIC"))).orderBy(asc(paymentAccounts.sortOrder), asc(paymentAccounts.id)).limit(1);
+  if (!acc) throw new ApiError(422, "PAYMENT_NOT_READY", "Belum ada tujuan pembayaran aktif");
+  await tx.insert(payments).values({
+    orderId: o.id, expectedAmount: o.total, status: "PENDING",
+    method: acc.type, paymentAccountId: acc.id, destinationSnapshot: { provider: acc.provider, accountName: acc.accountName },
+  });
 }
 
 // ---------- Checkout (API-02) ----------
@@ -193,8 +199,10 @@ export async function trackingView(token: string) {
   if (!b) return null;
   const settings = await getSettings();
   const pay = b.pays[0] ?? null;
-  const accounts = b.o.status === "PENDING_PAYMENT" || b.o.status === "PROOF_SENT"
-    ? await db.select().from(paymentAccounts).where(and(eq(paymentAccounts.isActive, true), eq(paymentAccounts.type, "QRIS_STATIC"))).orderBy(asc(paymentAccounts.sortOrder), asc(paymentAccounts.id))
+  const active = b.o.status === "PENDING_PAYMENT" || b.o.status === "PROOF_SENT";
+  const accountId = pay?.paymentAccountId;
+  const accounts = active && accountId
+    ? await db.select().from(paymentAccounts).where(and(eq(paymentAccounts.id, accountId), eq(paymentAccounts.type, "QRIS_STATIC")))
     : [];
   const wa = waOrderOf(b);
   const refundState = b.o.status === "REFUND_REQUESTED" ? (b.o.refundAccountNo ? "SUBMITTED" : "NEEDED") : b.o.status === "REFUNDED" ? "DONE" : null;
@@ -204,7 +212,7 @@ export async function trackingView(token: string) {
     totals: { subtotal: b.o.subtotal, fee: b.o.serviceFee, uniqueCode: b.o.uniqueCode, total: b.o.total },
     queueNumber: b.o.queueNumber, hasOrderProof: !!b.o.orderProofPath,
     outlet: { name: b.outletName, address: b.outletAddress, brand: b.brandName },
-    paymentAccounts: accounts.map((a) => ({ id: a.id, type: a.type, provider: a.provider, accountName: a.accountName, qrisUrl: a.type === "QRIS_STATIC" ? `/api/qris/${a.id}` : null })),
+    paymentAccounts: accounts.map((a) => ({ id: a.id, type: a.type, provider: pay?.destinationSnapshot?.provider ?? a.provider, accountName: pay?.destinationSnapshot?.accountName ?? a.accountName, qrisUrl: a.type === "QRIS_STATIC" ? `/api/qris/${a.id}?token=${b.o.trackingToken}` : null })),
     payment: pay ? { status: pay.status, hasProof: !!pay.proofImagePath, claimedAt: pay.proofClaimedAt } : null,
     phases: phaseTimes(b.events), progress: customerProgress(b.o.status, phaseTimes(b.events)), refundState, verifyEtaMin: settings.verifyEtaMin,
     adminWa: settings.adminWa,
@@ -226,8 +234,10 @@ export async function submitPaymentProof(where: { token?: string; id?: string },
       gate(o, actor);
       const p = await activePayment(tx, o.id);
       if (!p) throw new ApiError(409, "INVALID_TRANSITION", "Tidak ada pembayaran aktif");
-      const acc = await getActivePaymentAccount();
-      if (!acc) throw new ApiError(422, "PAYMENT_NOT_READY", "Belum ada tujuan pembayaran aktif");
+      const [acc] = p.paymentAccountId
+        ? await db.select().from(paymentAccounts).where(and(eq(paymentAccounts.id, p.paymentAccountId), eq(paymentAccounts.type, "QRIS_STATIC")))
+        : [await getActivePaymentAccount()];
+      if (!acc) throw new ApiError(422, "PAYMENT_NOT_READY", "Tujuan pembayaran pesanan tidak tersedia; hubungi admin WhatsApp");
       const now = new Date();
       oldPath = p.proofImagePath;
       const snapshot = { provider: acc.provider, accountName: acc.accountName, ...(acc.accountNo ? { accountNo: acc.accountNo } : {}) };
@@ -252,31 +262,22 @@ function gate(o: { status: OrderStatus; expiresAt: Date; cancelReason: string | 
   if (o.status === "CANCELLED" && o.cancelReason === "EXPIRED") throw new ApiError(410, "EXPIRED", "Waktu bayar habis. Jika sudah bayar, hubungi admin dan sebutkan kode pesanan");
   if (o.status === "VERIFYING") throw new ApiError(409, "LOCKED", "Pembayaran sedang diverifikasi, bukti tidak bisa diganti");
   if (o.status !== "PENDING_PAYMENT" && o.status !== "PROOF_SENT") throw new ApiError(409, "INVALID_TRANSITION", "Pesanan tidak menerima bukti pembayaran");
-  if (actor === "buyer" && o.status === "PENDING_PAYMENT" && o.expiresAt.getTime() < Date.now()) {
+  if (actor === "buyer" && o.status === "PENDING_PAYMENT" && o.expiresAt.getTime() <= Date.now()) {
     throw new ApiError(410, "EXPIRED", "Waktu bayar habis. Jika sudah bayar, hubungi admin dan sebutkan kode pesanan");
   }
 }
 
 // ---------- Rekening refund (API-04) ----------
 export async function setRefundAccount(token: string, body: Input) {
-  const method = body.oneOf("method", ["BANK", "EWALLET"] as const);
-  const provider = body.str("provider", 2, 40);
-  const accountNo = body.str("accountNo", 5, 30);
-  if (!/^[0-9]+$/.test(accountNo)) throw bad("accountNo", "hanya digit");
-  const accountName = body.str("accountName", 2, 60);
+  void body;
   if (!isToken(token)) throw new ApiError(404, "NOT_FOUND", "Pesanan tidak ditemukan");
-  await db.transaction(async (tx) => {
-    const o = await lockOrder(tx, { token });
-    if (o.status !== "REFUND_REQUESTED") throw new ApiError(409, "INVALID_TRANSITION", "Pesanan tidak sedang menunggu refund");
-    await tx.update(orders).set({ refundMethod: method, refundProvider: provider, refundAccountNo: accountNo, refundAccountName: accountName }).where(eq(orders.id, o.id));
-    await addEvent(tx, o.id, o.status, o.status, "REFUND_ACCOUNT_SET", "buyer"); // BR-23: data rekening tidak masuk event/log
-  });
+  throw new ApiError(403, "SELF_SERVICE_REFUND_DISABLED", "Pengajuan refund mandiri dinonaktifkan. Hubungi admin melalui WhatsApp; admin akan mencatat rekening refund.");
 }
 
 // ---------- Kedaluwarsa (API-07) ----------
 export async function expireOrders() {
   return db.transaction(async (tx) => {
-    const due = await tx.select().from(orders).where(and(eq(orders.status, "PENDING_PAYMENT"), lt(orders.expiresAt, new Date()))).for("update", { skipLocked: true });
+    const due = await tx.select().from(orders).where(and(eq(orders.status, "PENDING_PAYMENT"), lte(orders.expiresAt, new Date()))).for("update", { skipLocked: true });
     for (const o of due) {
       await tx.update(payments).set({ status: "EXPIRED" }).where(and(eq(payments.orderId, o.id), eq(payments.status, "PENDING")));
       await transition(tx, o, "CANCELLED", "system", { type: "ORDER_EXPIRED", set: { cancelReason: "EXPIRED" } });
