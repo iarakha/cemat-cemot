@@ -7213,12 +7213,12 @@
               "type": "frame",
               "id": "L8TTKq",
               "name": "Lihat Titipan Button",
-              "height": 50,
+              "height": 36,
               "fill": "$primary",
-              "cornerRadius": 25,
+              "cornerRadius": 18,
               "padding": [
                 0,
-                24
+                16
               ],
               "justifyContent": "center",
               "alignItems": "center",
@@ -7230,7 +7230,7 @@
                   "fill": "$primary-foreground",
                   "content": "Lihat titipan",
                   "fontFamily": "$font-sans",
-                  "fontSize": 16,
+                  "fontSize": 14,
                   "fontWeight": "700"
                 }
               ]
@@ -8979,7 +8979,7 @@
               "x": 0,
               "y": 1250,
               "name": "Cart Bar",
-              "width": "fill_container(390)",
+              "width": 390,
               "fill": "$card",
               "stroke": "$border",
               "strokeWidth": {
@@ -9027,12 +9027,12 @@
                   "type": "frame",
                   "id": "BTisZ",
                   "name": "Lihat Titipan Button",
-                  "height": 50,
-                  "fill": "$primary",
-                  "cornerRadius": 25,
+                  "height": 36,
+                  "fill": "$secondary",
+                  "cornerRadius": 18,
                   "padding": [
                     0,
-                    24
+                    16
                   ],
                   "justifyContent": "center",
                   "alignItems": "center",
@@ -9041,10 +9041,10 @@
                       "type": "text",
                       "id": "YvetU",
                       "name": "Lihat titipan",
-                      "fill": "$primary-foreground",
+                      "fill": "$secondary-foreground",
                       "content": "Lihat titipan",
                       "fontFamily": "$font-sans",
-                      "fontSize": 16,
+                      "fontSize": 14,
                       "fontWeight": "700"
                     }
                   ]
@@ -12384,7 +12384,7 @@
                     {
                       "type": "text",
                       "id": "y0sqM",
-                      "name": "Transfer tepat sebesar",
+                      "name": "Judul QRIS",
                       "fill": "$muted-foreground",
                       "content": "Bayar dengan QRIS",
                       "fontFamily": "$font-sans",
@@ -12461,7 +12461,7 @@
                         {
                           "type": "icon",
                           "id": "KD4sI",
-                          "name": "copy",
+                          "name": "download",
                           "width": 16,
                           "height": 16,
                           "icon": "download",
@@ -12471,7 +12471,7 @@
                         {
                           "type": "text",
                           "id": "Zt4CN",
-                          "name": "Salin nominal",
+                          "name": "Simpan QRIS",
                           "fill": "$foreground",
                           "content": "Simpan QRIS",
                           "fontFamily": "$font-sans",
@@ -12568,7 +12568,7 @@
                 {
                   "type": "frame",
                   "id": "d9LzRs",
-                  "name": "Kirim Bukti WA Button",
+                  "name": "Unggah Bukti Button",
                   "width": "fill_container",
                   "height": 52,
                   "fill": "$primary",
@@ -12926,10 +12926,58 @@
                   "fill": "$secondary-foreground",
                   "textGrowth": "fixed-width",
                   "width": "fill_container",
-                  "content": "Simpan link untuk akses cepat. Link hilang? Cari pesanan dan verifikasi nomor HP kamu.",
+                  "content": "Simpan link untuk akses cepat. Pesanan dari browser ini juga ada di Semua pesanan.",
                   "fontFamily": "$font-sans",
                   "fontSize": 13,
                   "fontWeight": "500"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "MUyzs",
+              "name": "Kabari Admin Row",
+              "width": "fill_container",
+              "justifyContent": "end",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "u37SWh",
+                  "name": "Kirim Ulang Button",
+                  "height": 36,
+                  "fill": "$card",
+                  "cornerRadius": 18,
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "gap": 6,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "J7zavV",
+                      "name": "whatsapp",
+                      "geometry": "M17.472 14.382c-0.297-0.149-1.758-0.867-2.03-0.967-0.273-0.099-0.471-0.148-0.67 0.15-0.197 0.297-0.767 0.966-0.94 1.164-0.173 0.199-0.347 0.223-0.644 0.075-0.297-0.15-1.255-0.463-2.39-1.475-0.883-0.788-1.48-1.761-1.653-2.059-0.173-0.297-0.018-0.458 0.13-0.606 0.134-0.133 0.298-0.347 0.446-0.52 0.149-0.174 0.198-0.298 0.298-0.497 0.099-0.198 0.05-0.371-0.025-0.52-0.075-0.149-0.669-1.612-0.916-2.207-0.242-0.579-0.487-0.5-0.669-0.51-0.173-0.008-0.371-0.01-0.57-0.01-0.198 0-0.52 0.074-0.792 0.372-0.272 0.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074 0.149 0.198 2.096 3.2 5.077 4.487 0.709 0.306 1.262 0.489 1.694 0.625 0.712 0.227 1.36 0.195 1.871 0.118 0.571-0.085 1.758-0.719 2.006-1.413 0.248-0.694 0.248-1.289 0.173-1.413-0.074-0.124-0.272-0.198-0.57-0.347m-5.421 7.403h-0.004a9.87 9.87 0 0 1-5.031-1.378l-0.361-0.214-3.741 0.982 0.998-3.648-0.235-0.374a9.86 9.86 0 0 1-1.51-5.26c0.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-0.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297a11.815 11.815 0 0 0-8.413-3.488c-6.555 0-11.89 5.335-11.893 11.892 0 2.096 0.547 4.142 1.588 5.945l-1.688 6.163 6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h0.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z",
+                      "fill": "$primary",
+                      "width": 16,
+                      "height": 16
+                    },
+                    {
+                      "type": "text",
+                      "id": "qgBt6",
+                      "name": "Kabari Admin Opsional",
+                      "fill": "$foreground",
+                      "content": "Kabari admin",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 13,
+                      "fontWeight": "700"
+                    }
+                  ]
                 }
               ]
             },
@@ -13151,14 +13199,62 @@
             {
               "type": "text",
               "id": "LmwGz",
-              "name": "Status berubah setelah unggahan berhasil. Gagal unggah? Coba lagi atau chat admin.",
+              "name": "Catatan unggah",
               "fill": "$muted-foreground",
               "textGrowth": "fixed-width",
               "width": "fill_container",
-              "content": "Status berubah setelah unggahan berhasil. Gagal unggah? Coba lagi atau chat admin.",
+              "content": "Status berubah setelah unggahan berhasil. Gagal unggah? Coba lagi atau kabari admin.",
               "fontFamily": "$font-sans",
               "fontSize": 13,
               "fontWeight": "500"
+            },
+            {
+              "type": "frame",
+              "id": "FQuQU",
+              "name": "Kabari Admin Row",
+              "width": "fill_container",
+              "justifyContent": "end",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "u06BwR",
+                  "name": "Kirim Ulang Button",
+                  "height": 36,
+                  "fill": "$card",
+                  "cornerRadius": 18,
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "gap": 6,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "Q02nm",
+                      "name": "whatsapp",
+                      "geometry": "M17.472 14.382c-0.297-0.149-1.758-0.867-2.03-0.967-0.273-0.099-0.471-0.148-0.67 0.15-0.197 0.297-0.767 0.966-0.94 1.164-0.173 0.199-0.347 0.223-0.644 0.075-0.297-0.15-1.255-0.463-2.39-1.475-0.883-0.788-1.48-1.761-1.653-2.059-0.173-0.297-0.018-0.458 0.13-0.606 0.134-0.133 0.298-0.347 0.446-0.52 0.149-0.174 0.198-0.298 0.298-0.497 0.099-0.198 0.05-0.371-0.025-0.52-0.075-0.149-0.669-1.612-0.916-2.207-0.242-0.579-0.487-0.5-0.669-0.51-0.173-0.008-0.371-0.01-0.57-0.01-0.198 0-0.52 0.074-0.792 0.372-0.272 0.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074 0.149 0.198 2.096 3.2 5.077 4.487 0.709 0.306 1.262 0.489 1.694 0.625 0.712 0.227 1.36 0.195 1.871 0.118 0.571-0.085 1.758-0.719 2.006-1.413 0.248-0.694 0.248-1.289 0.173-1.413-0.074-0.124-0.272-0.198-0.57-0.347m-5.421 7.403h-0.004a9.87 9.87 0 0 1-5.031-1.378l-0.361-0.214-3.741 0.982 0.998-3.648-0.235-0.374a9.86 9.86 0 0 1-1.51-5.26c0.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-0.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297a11.815 11.815 0 0 0-8.413-3.488c-6.555 0-11.89 5.335-11.893 11.892 0 2.096 0.547 4.142 1.588 5.945l-1.688 6.163 6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h0.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z",
+                      "fill": "$primary",
+                      "width": 16,
+                      "height": 16
+                    },
+                    {
+                      "type": "text",
+                      "id": "UwiZ2",
+                      "name": "Kabari Admin Opsional",
+                      "fill": "$foreground",
+                      "content": "Kabari admin",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 13,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
             }
           ]
         }
@@ -13908,7 +14004,7 @@
                       "fill": "$secondary-foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Simpan link untuk akses cepat. Link hilang? Cari pesanan dan verifikasi nomor HP kamu.",
+                      "content": "Simpan link untuk akses cepat. Pesanan dari browser ini juga ada di Semua pesanan.",
                       "fontFamily": "$font-sans",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -15054,7 +15150,7 @@
                       "fill": "$secondary-foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Simpan link untuk akses cepat. Link hilang? Cari pesanan dan verifikasi nomor HP kamu.",
+                      "content": "Simpan link untuk akses cepat. Pesanan dari browser ini juga ada di Semua pesanan.",
                       "fontFamily": "$font-sans",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -15837,7 +15933,7 @@
                       "fill": "$secondary-foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Simpan link untuk akses cepat. Link hilang? Cari pesanan dan verifikasi nomor HP kamu.",
+                      "content": "Simpan link untuk akses cepat. Pesanan dari browser ini juga ada di Semua pesanan.",
                       "fontFamily": "$font-sans",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -16687,7 +16783,7 @@
                       "fill": "$secondary-foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Simpan link untuk akses cepat. Link hilang? Cari pesanan dan verifikasi nomor HP kamu.",
+                      "content": "Simpan link untuk akses cepat. Pesanan dari browser ini juga ada di Semua pesanan.",
                       "fontFamily": "$font-sans",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -17575,7 +17671,7 @@
                       "fill": "$secondary-foreground",
                       "textGrowth": "fixed-width",
                       "width": "fill_container",
-                      "content": "Simpan link untuk akses cepat. Link hilang? Cari pesanan dan verifikasi nomor HP kamu.",
+                      "content": "Simpan link untuk akses cepat. Pesanan dari browser ini juga ada di Semua pesanan.",
                       "fontFamily": "$font-sans",
                       "fontSize": 13,
                       "fontWeight": "500"
@@ -17878,6 +17974,54 @@
               "fontFamily": "$font-sans",
               "fontSize": 13,
               "fontWeight": "500"
+            },
+            {
+              "type": "frame",
+              "id": "iokL7",
+              "name": "Kabari Admin Row",
+              "width": "fill_container",
+              "justifyContent": "end",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "L0yLwQ",
+                  "name": "Kirim Ulang Button",
+                  "height": 36,
+                  "fill": "$card",
+                  "cornerRadius": 18,
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "gap": 6,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "rlWVu",
+                      "name": "whatsapp",
+                      "geometry": "M17.472 14.382c-0.297-0.149-1.758-0.867-2.03-0.967-0.273-0.099-0.471-0.148-0.67 0.15-0.197 0.297-0.767 0.966-0.94 1.164-0.173 0.199-0.347 0.223-0.644 0.075-0.297-0.15-1.255-0.463-2.39-1.475-0.883-0.788-1.48-1.761-1.653-2.059-0.173-0.297-0.018-0.458 0.13-0.606 0.134-0.133 0.298-0.347 0.446-0.52 0.149-0.174 0.198-0.298 0.298-0.497 0.099-0.198 0.05-0.371-0.025-0.52-0.075-0.149-0.669-1.612-0.916-2.207-0.242-0.579-0.487-0.5-0.669-0.51-0.173-0.008-0.371-0.01-0.57-0.01-0.198 0-0.52 0.074-0.792 0.372-0.272 0.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074 0.149 0.198 2.096 3.2 5.077 4.487 0.709 0.306 1.262 0.489 1.694 0.625 0.712 0.227 1.36 0.195 1.871 0.118 0.571-0.085 1.758-0.719 2.006-1.413 0.248-0.694 0.248-1.289 0.173-1.413-0.074-0.124-0.272-0.198-0.57-0.347m-5.421 7.403h-0.004a9.87 9.87 0 0 1-5.031-1.378l-0.361-0.214-3.741 0.982 0.998-3.648-0.235-0.374a9.86 9.86 0 0 1-1.51-5.26c0.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-0.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297a11.815 11.815 0 0 0-8.413-3.488c-6.555 0-11.89 5.335-11.893 11.892 0 2.096 0.547 4.142 1.588 5.945l-1.688 6.163 6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h0.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z",
+                      "fill": "$primary",
+                      "width": 16,
+                      "height": 16
+                    },
+                    {
+                      "type": "text",
+                      "id": "JxwYQ",
+                      "name": "Kabari Admin Opsional",
+                      "fill": "$foreground",
+                      "content": "Kabari admin",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 13,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
             }
           ]
         }
@@ -18080,6 +18224,54 @@
               "fontFamily": "$font-sans",
               "fontSize": 13,
               "fontWeight": "500"
+            },
+            {
+              "type": "frame",
+              "id": "SfV9o",
+              "name": "Kabari Admin Row",
+              "width": "fill_container",
+              "justifyContent": "end",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "RXiVp",
+                  "name": "Kirim Ulang Button",
+                  "height": 36,
+                  "fill": "$card",
+                  "cornerRadius": 18,
+                  "stroke": "$border",
+                  "strokeWidth": 1,
+                  "gap": 6,
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "G1CdK",
+                      "name": "whatsapp",
+                      "geometry": "M17.472 14.382c-0.297-0.149-1.758-0.867-2.03-0.967-0.273-0.099-0.471-0.148-0.67 0.15-0.197 0.297-0.767 0.966-0.94 1.164-0.173 0.199-0.347 0.223-0.644 0.075-0.297-0.15-1.255-0.463-2.39-1.475-0.883-0.788-1.48-1.761-1.653-2.059-0.173-0.297-0.018-0.458 0.13-0.606 0.134-0.133 0.298-0.347 0.446-0.52 0.149-0.174 0.198-0.298 0.298-0.497 0.099-0.198 0.05-0.371-0.025-0.52-0.075-0.149-0.669-1.612-0.916-2.207-0.242-0.579-0.487-0.5-0.669-0.51-0.173-0.008-0.371-0.01-0.57-0.01-0.198 0-0.52 0.074-0.792 0.372-0.272 0.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074 0.149 0.198 2.096 3.2 5.077 4.487 0.709 0.306 1.262 0.489 1.694 0.625 0.712 0.227 1.36 0.195 1.871 0.118 0.571-0.085 1.758-0.719 2.006-1.413 0.248-0.694 0.248-1.289 0.173-1.413-0.074-0.124-0.272-0.198-0.57-0.347m-5.421 7.403h-0.004a9.87 9.87 0 0 1-5.031-1.378l-0.361-0.214-3.741 0.982 0.998-3.648-0.235-0.374a9.86 9.86 0 0 1-1.51-5.26c0.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-0.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297a11.815 11.815 0 0 0-8.413-3.488c-6.555 0-11.89 5.335-11.893 11.892 0 2.096 0.547 4.142 1.588 5.945l-1.688 6.163 6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h0.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z",
+                      "fill": "$primary",
+                      "width": 16,
+                      "height": 16
+                    },
+                    {
+                      "type": "text",
+                      "id": "J247Nm",
+                      "name": "Kabari Admin Opsional",
+                      "fill": "$foreground",
+                      "content": "Kabari admin",
+                      "fontFamily": "$font-sans",
+                      "fontSize": 13,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
             }
           ]
         }
