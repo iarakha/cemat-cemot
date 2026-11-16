@@ -41,7 +41,9 @@ export const isUuid = (v: unknown): v is string => typeof v === "string" && UUID
 
 /** Pembaca field bertipe. Menerima JSON atau multipart (nilai string diubah ke angka/boolean bila perlu). */
 export class Input {
-  constructor(readonly o: Record<string, unknown>) {}
+  /** `path` = awalan nama field untuk pesan error bersarang, mis. "items[0]". */
+  constructor(readonly o: Record<string, unknown>, readonly path = "") {}
+  private f(k: string) { return this.path ? `${this.path}.${k}` : k; }
   static async json(req: Request) {
     let v: unknown;
     try { v = await req.json(); } catch { throw bad("body", "JSON tidak valid"); }
@@ -56,16 +58,16 @@ export class Input {
   has(k: string) { return this.o[k] !== undefined && this.o[k] !== null && this.o[k] !== ""; }
   str(k: string, min: number, max: number, allowNewline = false) {
     const v = this.o[k];
-    if (typeof v !== "string") throw bad(k, "wajib berupa teks");
+    if (typeof v !== "string") throw bad(this.f(k), "wajib berupa teks");
     const t = v.trim();
-    if (t.length < min || t.length > max || hasCtrl(t, allowNewline)) throw bad(k, `${min}–${max} karakter tanpa karakter kontrol`);
+    if (t.length < min || t.length > max || hasCtrl(t, allowNewline)) throw bad(this.f(k), `${min}–${max} karakter tanpa karakter kontrol`);
     return t;
   }
   optStr(k: string, max: number, allowNewline = false) { return this.has(k) ? this.str(k, 1, max, allowNewline) : null; }
   int(k: string, min: number, max: number) {
     const raw = this.o[k];
     const v = typeof raw === "string" && /^-?\d+$/.test(raw.trim()) ? Number(raw) : raw;
-    if (typeof v !== "number" || !Number.isSafeInteger(v) || v < min || v > max) throw bad(k, `bilangan bulat ${min}–${max}`);
+    if (typeof v !== "number" || !Number.isSafeInteger(v) || v < min || v > max) throw bad(this.f(k), `bilangan bulat ${min}–${max}`);
     return v;
   }
   optInt(k: string, min: number, max: number) { return this.has(k) ? this.int(k, min, max) : null; }
@@ -73,26 +75,30 @@ export class Input {
     const v = this.o[k];
     if (v === true || v === "true") return true;
     if (v === false || v === "false") return false;
-    throw bad(k, "wajib true/false");
+    throw bad(this.f(k), "wajib true/false");
   }
   optBool(k: string) { return this.has(k) ? this.bool(k) : undefined; }
-  uuid(k: string) { const v = this.o[k]; if (!isUuid(v)) throw bad(k, "UUID tidak valid"); return v; }
+  uuid(k: string) { const v = this.o[k]; if (!isUuid(v)) throw bad(this.f(k), "UUID tidak valid"); return v; }
   oneOf<T extends string>(k: string, list: readonly T[]): T {
     const v = this.o[k];
-    if (typeof v !== "string" || !(list as readonly string[]).includes(v)) throw bad(k, `salah satu dari ${list.join(", ")}`);
+    if (typeof v !== "string" || !(list as readonly string[]).includes(v)) throw bad(this.f(k), `salah satu dari ${list.join(", ")}`);
     return v as T;
   }
   arr(k: string, max: number): unknown[] {
     const v = this.o[k];
-    if (!Array.isArray(v) || v.length > max) throw bad(k, `daftar maksimal ${max} elemen`);
+    if (!Array.isArray(v) || v.length > max) throw bad(this.f(k), `daftar maksimal ${max} elemen`);
     return v;
   }
   file(k: string): File | null { const v = this.o[k]; return v instanceof File && v.size > 0 ? v : null; }
 }
 export const asInput = (v: unknown, field: string) => {
   if (!v || typeof v !== "object" || Array.isArray(v)) throw bad(field, "harus objek");
-  return new Input(v as Record<string, unknown>);
+  return new Input(v as Record<string, unknown>, field);
 };
+/** Method HTTP tidak didukung -> JSON seragam + header Allow (bukan 405 kosong dari Next). */
+export const methodNotAllowed = (allow: string) => handle<unknown>(async () => {
+  throw new ApiError(405, "METHOD_NOT_ALLOWED", `Gunakan method ${allow}`, undefined, { Allow: allow });
+});
 
 /** Body JSON atau multipart, sesuai Content-Type. */
 export async function readBody(req: Request) {

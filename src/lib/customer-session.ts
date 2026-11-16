@@ -1,8 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, desc, eq, gt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, or, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { db } from "@/db";
-import { customerSessions, orders } from "@/db/schema";
+import { brands, customerSessions, orders, outlets } from "@/db/schema";
 import { historyPage, normalizePhone } from "./order-rules";
 
 const COOKIE = process.env.NODE_ENV === "production" ? "__Host-cc_customer" : "cc_customer";
@@ -31,13 +31,17 @@ export async function getCustomerSession() {
   return session ?? null;
 }
 
-export async function getCustomerHistory(limit = 10, offset = 0) {
+/** Riwayat = order dari perangkat ini (cookie buyer) ATAU nomor HP yang lolos OTP. Tanpa keduanya: kosong. */
+export async function getCustomerHistory(buyerHash: string | null, limit = 10, offset = 0) {
   const page = historyPage(limit, offset);
   const session = await getCustomerSession();
-  if (!session) throw new Error("OTP_REQUIRED");
-  return db.select({ id: orders.id, orderCode: orders.orderCode, status: orders.status, total: orders.total, createdAt: orders.createdAt })
-    .from(orders).where(eq(orders.customerPhone, session.customerPhone))
-    .orderBy(desc(orders.createdAt), desc(orders.id)).limit(page.limit).offset(page.offset);
+  const owner = or(buyerHash ? eq(orders.buyerHash, buyerHash) : undefined, session ? eq(orders.customerPhone, session.customerPhone) : undefined);
+  if (!owner) return [];
+  return db.select({
+    token: orders.trackingToken, orderCode: orders.orderCode, status: orders.status, total: orders.total, queueNumber: orders.queueNumber,
+    brand: brands.name, outlet: outlets.name, createdAt: orders.createdAt,
+  }).from(orders).innerJoin(outlets, eq(outlets.id, orders.outletId)).innerJoin(brands, eq(brands.id, outlets.brandId))
+    .where(owner).orderBy(desc(orders.createdAt), desc(orders.id)).limit(page.limit).offset(page.offset);
 }
 
 // Panggil terpisah untuk IP dan nomor ter-HMAC, sebelum pencarian/pengiriman OTP.

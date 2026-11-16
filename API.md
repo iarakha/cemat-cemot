@@ -13,17 +13,19 @@ Status: implementasi BE awal, bukan deklarasi seluruh cakupan RND selesai. OTP f
 | GET | `/api/catalog` | `{brands:[{id,slug,name,items:[{id,name,normalPrice,promo,options}]}]}`. Opsi berisi grup, required, maxSelect, choices, delta, default |
 | GET | `/api/outlets?brand=fore&lat=-6.2&lng=106.8` | Maks 10 aktif terdekat, haversine, distanceKm |
 | GET | `/api/outlets?brand=fore&q=Jakarta` | Cari nama/alamat/city; maks 10 |
-| POST | `/api/checkout` | Body di bawah. 201 `{token}`, replay 200. Header `Idempotency-Key` juga diterima jika field body kosong |
-| GET | `/api/pesanan/{token}` | Status, item snapshot, totals, expiresAt, queueNumber, payment, paymentAccounts, phases (jam dari events), refundState, adminWa, waUrls |
+| POST | `/api/checkout` | Isi keranjang localStorage dikirim lewat body (brandSlug, outletId, items). Harga dan opsi divalidasi ulang di server. 201 `{token}`, replay 200. Header `Idempotency-Key` juga diterima jika field body kosong |
+| GET | `/api/pesanan/{token}` | Status, item snapshot, totals, expiresAt, queueNumber, payment, paymentAccounts, phases (jam dari events), progress (5 langkah customer: label, checked, active, at), refundState, adminWa, waUrls |
 | POST | `/api/pesanan/{token}/proof` | Multipart field `file`, JPEG/PNG/WebP <=10 MB. 204; VERIFYING terkunci 409, expired 410 |
 | POST | `/api/pesanan/{token}/refund-account` | `{method:"BANK"|"EWALLET",provider,accountNo,accountName}`; hanya REFUND_REQUESTED; 204 |
 | GET | `/api/pesanan/{token}/files/payment-proof` | Gambar bukti bayar milik token |
-| GET | `/api/pesanan/{token}/files/order-proof` | Foto pesanan dari admin milik token |
+| GET | `/api/pesanan/{token}/files/order-proof` | Bukti order dari admin milik token |
 | GET | `/api/qris/{paymentAccountId}` | QRIS tujuan aktif |
-| POST | `/api/pesanan/lookup` | `{type:"phone"|"booking"|"pickup",value,brand?,outletId?}`. Tanpa sesi: 202 generik; tidak membuka order. Sesi terverifikasi: hanya order HP pemilik |
-| GET | `/api/customer/orders?limit=10&offset=0` | Cookie customer terverifikasi wajib; 401 tanpa sesi |
+| POST | `/api/pesanan/lookup` | `{type:"phone"|"booking"|"pickup",value,brand?,outletId?}`. Tanpa cookie perangkat dan tanpa sesi OTP: 202 generik, tidak membuka order. Dengan keduanya/salah satu: hanya order milik perangkat/HP ber-OTP |
+| GET | `/api/customer/orders?limit=10&offset=0` | Riwayat: order dari perangkat ini (cookie `cc_buyer`) ATAU nomor HP ber-OTP. Respons `{orders:[...],limit,offset}`, item `{token,orderCode,status,total,queueNumber,brand,outlet,createdAt}`; `token` untuk `/api/pesanan/{token}`. Tanpa identitas: 200 daftar kosong. Urut terbaru |
 | POST | `/api/customer/otp/request` | `{challenge}`. Saat ini 503 OTP_UNAVAILABLE; tidak membuat sesi/challenge tersimpan |
 | POST | `/api/customer/otp/verify` | `{challengeId,otp}`. Saat ini 503 OTP_UNAVAILABLE; tidak auto-login |
+
+Keranjang disimpan di localStorage; tidak ada API cart atau tabel keranjang. Kosongkan localStorage setelah checkout sukses.
 
 Checkout JSON:
 
@@ -38,7 +40,7 @@ Checkout JSON:
 }
 ```
 
-Nilai total contoh bukan harga resmi. Hitung dari katalog; server tetap menghitung ulang. 409 PRICE_CHANGED memuat `error.expectedTotal` untuk persetujuan ulang. Pilih semua grup wajib; tidak ada default diam-diam. Checkout tidak membuat sesi pemilik nomor HP.
+Nilai total contoh bukan harga resmi. Hitung dari katalog; server tetap menghitung ulang. 409 PRICE_CHANGED memuat `error.expectedTotal` untuk persetujuan ulang. Pilih semua grup wajib; tidak ada default diam-diam. Checkout membuat cookie perangkat `cc_buyer` (produksi `__Host-cc_buyer`, httpOnly, SameSite=Lax, 180 hari; DB menyimpan SHA-256) untuk riwayat perangkat, bukan sesi OTP atau bukti kepemilikan nomor HP.
 
 ## Admin
 
@@ -47,11 +49,11 @@ Nilai total contoh bukan harga resmi. Hitung dari katalog; server tetap menghitu
 | POST | `/api/admin/session` | `{username,password}`; sukses cookie httpOnly 12 jam |
 | GET | `/api/admin/session` | Identitas sesi; 401 bila tidak valid |
 | DELETE | `/api/admin/session` | Logout; 204 |
-| GET | `/api/admin/orders?status=PAID&limit=20&offset=0` | Daftar order; PAID/PROCESSING urut paidAt naik |
-| GET | `/api/admin/orders/{orderId}` | Order, item, riwayat payment, event. Tidak mengubah status |
+| GET | `/api/admin/orders?status=PAID&q=&limit=20&offset=0` | Daftar order. Tiap baris: `id,orderCode,status,customerName,customerPhone(62..),queueNumber,brand,outlet,total,hasOrderProof,orderProofAt,createdAt,paidAt`. `q` cari kode booking, nomor antrean, nama, potongan HP (08/62). PAID/PROCESSING urut paidAt naik |
+| GET | `/api/admin/orders/{orderId}` | Order (termasuk `customerName`,`customerPhone`,`queueNumber`, `orderProof:{exists,uploadedAt,uploadedBy}`), item, riwayat payment (`hasProof` = bukti bayar pembeli), event. Tidak mengubah status |
 | POST | `/api/admin/orders/{orderId}/{action}` | JSON kecuali aksi upload. Aksi di bawah |
-| GET | `/api/admin/files/payment-proof/{paymentId}` | Bukti pembayaran (ID payment, bukan order) |
-| GET | `/api/admin/files/order-proof/{orderId}` | Bukti pesanan |
+| GET | `/api/admin/files/payment-proof/{paymentId}` | Bukti pembayaran pembeli (ID payment, bukan order) |
+| GET | `/api/admin/files/order-proof/{orderId}` | Bukti order di app brand (diunggah admin) |
 | GET | `/api/admin/files/qris/{paymentAccountId}` | QRIS admin, termasuk nonaktif |
 | PATCH | `/api/admin/profile` | `{action:"identity",username,email,currentPassword}` atau `{action:"password",currentPassword,newPassword,confirmation}`. Sukses mencabut seluruh sesi |
 
@@ -59,21 +61,24 @@ Aksi order:
 
 | action | Body |
 | --- | --- |
-| `payment-proof` | Multipart `file`: admin membantu unggah sebelum mulai verifikasi |
+| `payment-proof` | Multipart `file`: admin membantu unggah BUKTI BAYAR pembeli sebelum mulai verifikasi (tabel payments). Bukan bukti order |
 | `start-verification` | `{}`; PROOF_SENT ke VERIFYING |
 | `confirm-payment` | `{paidAmount,partnerCompanyId,partnerAmount,note?}`; hanya VERIFYING. Partner aktif wajib, nominal diterima >= total |
 | `reject-payment` | `{reason,note?}`; payment lama REJECTED, payment baru PENDING, deadline baru |
 | `revert-confirmation` | `{note}`; hanya PAID sebelum processing |
 | `reopen` | `{to:"PAID"|"REFUND_REQUESTED",paidAmount,note,partnerCompanyId?,partnerAmount?}`; hanya CANCELLED; PAID wajib partner |
 | `cancel` | `{note}`; hanya PENDING_PAYMENT/PROOF_SENT/VERIFYING |
-| `start-processing` | `{}`; hanya PAID |
-| `mark-ready` | Multipart `queueNumber`, `file`, `note?`; hanya PROCESSING; nomor + foto wajib |
-| `replace-proof` | Multipart `queueNumber?`, `file?`, `note?`; minimal nomor/foto; PROCESSING/READY/DONE |
-| `mark-done` | `{}`; hanya READY |
-| `fail` | `{reason,note?}`; PAID/PROCESSING/READY ke REFUND_REQUESTED |
+| `start-processing` | Multipart `queueNumber`, `file` (bukti order di app partner), `note?`; PAID ke PROCESSING; nomor antrean + foto wajib dan disimpan atomik |
+| `order-proof` | Multipart `queueNumber?`, `file?`, `note?`; minimal salah satu; PROCESSING/DONE. Simpan ke kolom bukti order (`orders.order_proof_path/at/by`), tidak menyentuh bukti bayar. `replace-proof` = alias lama |
+| `mark-done` | `{}`; PROCESSING ke DONE |
+| `fail` | `{reason,note?}`; PAID/PROCESSING ke REFUND_REQUESTED |
 | `mark-refunded` | `{note}`; rekening refund wajib terisi |
 
 Semua aksi ber-guard, transaksi dan row lock. Replay transisi yang sudah selesai mengembalikan `{alreadyProcessed:true,status}`. WA hanya tautan manual, tidak ada pengiriman otomatis.
+
+Flow utama: PENDING_PAYMENT → PROOF_SENT → VERIFYING → PAID → PROCESSING → DONE. Customer melihat 5 label: Menunggu pembayaran, Bukti dikirim, Verifikasi pembayaran, Diproses (PAID/PROCESSING), Selesai. Bukti dikirim tercentang sejak PROOF_SENT, verifikasi sejak PAID, Diproses sejak PROCESSING, Selesai saat DONE. Waktu verifikasi selesai berasal dari event PAID. `mark-ready` dihapus (404).
+
+Migrasi `0015_ui_order_flow`: READY lama menjadi PROCESSING; PROCESSING lama tanpa nomor/foto kembali PAID dengan event audit. Enum READY hanya dipertahankan untuk riwayat lama; constraint melarang order aktif berstatus READY. REFUND_REQUESTED/REFUNDED/CANCELLED tetap tersedia sebagai jalur pengecualian; S07 hanya desain arsip, bukan penghapusan data refund. Jangan jalankan migrasi ke DB operasional tanpa backup dan persetujuan.
 
 ## Master data admin
 

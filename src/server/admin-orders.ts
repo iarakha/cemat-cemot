@@ -1,19 +1,29 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { orders, payments, partnerCompanies } from "@/db/schema";
+import { brands, orders, outlets, payments, partnerCompanies } from "@/db/schema";
 import { ApiError, Input, NOT_FOUND } from "./http";
 import { removeStored, saveImage } from "./files";
 import { getSettings } from "./store";
 import { ACTIVE_PAYMENT, AlreadyProcessed, activePayment, addEvent, locked, newPendingPayment, orderBundle, transition, waOrderOf, type OrderStatus } from "./order-flow";
-import { waConfirmed, waReady, waRejected } from "./wa";
+import { waConfirmed, waProcessing, waRejected } from "./wa";
 
 export async function listOrders(sp: URLSearchParams) {
   const b = new Input(Object.fromEntries(sp));
   const limit = b.has("limit") ? b.int("limit", 1, 50) : 20;
   const offset = b.has("offset") ? b.int("offset", 0, 1_000_000) : 0;
-  const status = b.has("status") ? b.oneOf("status", ["PENDING_PAYMENT", "PROOF_SENT", "VERIFYING", "PAID", "PROCESSING", "READY", "DONE", "REFUND_REQUESTED", "REFUNDED", "CANCELLED"] as const) : null;
-  const rows = await db.select({ id: orders.id, orderCode: orders.orderCode, status: orders.status, customerName: orders.customerName, total: orders.total, createdAt: orders.createdAt, paidAt: orders.paidAt })
-    .from(orders).where(status ? eq(orders.status, status) : undefined)
+  const status = b.has("status") ? b.oneOf("status", ["PENDING_PAYMENT", "PROOF_SENT", "VERIFYING", "PAID", "PROCESSING", "DONE", "REFUND_REQUESTED", "REFUNDED", "CANCELLED"] as const) : null;
+  // q: cari kode booking, nomor antrean, nama, atau nomor HP (HP dinormalkan; ILIKE dengan wildcard di-escape).
+  const q = b.optStr("q", 64);
+  const like = q ? `%${q.replace(/[\\%_]/g, "\\$&")}%` : null;
+  // Angka saja = potongan nomor HP: 08xx -> 628xx, cocok sebagian (admin sering ketik sebagian nomor).
+  const digits = q && /^\d+$/.test(q) ? q.replace(/^0/, "62") : null;
+  const search = q ? or(ilike(orders.orderCode, like!), ilike(orders.queueNumber, like!), ilike(orders.customerName, like!), digits ? ilike(orders.customerPhone, `%${digits}%`) : undefined) : undefined;
+  const rows = await db.select({
+    id: orders.id, orderCode: orders.orderCode, status: orders.status, customerName: orders.customerName, customerPhone: orders.customerPhone,
+    queueNumber: orders.queueNumber, brand: brands.name, outlet: outlets.name, total: orders.total,
+    hasOrderProof: sql<boolean>`${orders.orderProofPath} IS NOT NULL`, orderProofAt: orders.orderProofAt, createdAt: orders.createdAt, paidAt: orders.paidAt,
+  }).from(orders).innerJoin(outlets, eq(outlets.id, orders.outletId)).innerJoin(brands, eq(brands.id, outlets.brandId))
+    .where(and(status ? eq(orders.status, status) : undefined, search))
     .orderBy(status === "PAID" || status === "PROCESSING" ? asc(orders.paidAt) : desc(orders.createdAt), asc(orders.id)).limit(limit).offset(offset);
   return { orders: rows, limit, offset };
 }
@@ -22,14 +32,18 @@ export async function adminOrderView(id: string) {
   const b = await orderBundle({ id });
   if (!b) throw NOT_FOUND;
   // Guarded admin response. Paths stay internal; file routes use payment/order IDs.
+  // paymentProof = bukti bayar pembeli (per payment); orderProof = bukti pesanan di app brand dari admin (per order).
+  const order = { ...b.o, orderProofPath: undefined, buyerHash: undefined };
   return {
-    order: { ...b.o, proofImagePath: undefined }, brand: b.brandName, outlet: b.outletName,
-    items: b.items, payments: b.pays.map((p) => ({ ...p, proofImagePath: undefined, hasProof: !!p.proofImagePath })), events: b.events,
+    order: { ...order, orderProof: { exists: !!b.o.orderProofPath, uploadedAt: b.o.orderProofAt, uploadedBy: b.o.orderProofBy } },
+    brand: b.brandName, outlet: b.outletName,
+    items: b.items, payments: b.pays.map(({ proofImagePath, ...p }) => ({ ...p, hasProof: !!proofImagePath })), events: b.events,
   };
 }
 
 export async function orderAction(id: string, action: string, b: Input, adminId: string) {
   const note = b.optStr("note", 500);
+  const isOrderProof = action === "order-proof" || action === "replace-proof"; // replace-proof = alias lama
   const settings = await getSettings();
   const deadline = () => new Date(Date.now() + settings.paymentWindowMin * 60_000);
   // Validate mandatory fields before writing files or opening DB transaction.
@@ -39,11 +53,11 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
   const reason = ["reject-payment", "fail"].includes(action) ? b.str("reason", 1, 300) : null;
   if (["cancel", "reopen", "revert-confirmation", "mark-refunded"].includes(action) && !note) throw new ApiError(400, "INVALID_INPUT", "Catatan wajib");
   let queueNumber: string | undefined;
-  if (action === "mark-ready" || (action === "replace-proof" && b.has("queueNumber"))) queueNumber = b.str("queueNumber", 1, 64);
+  if (action === "start-processing" || (isOrderProof && b.has("queueNumber"))) queueNumber = b.str("queueNumber", 1, 64);
   const file = b.file("file");
-  if (action === "mark-ready" && !file) throw new ApiError(400, "INVALID_INPUT", "Foto bukti pesanan wajib");
-  if (action === "replace-proof" && !file && !queueNumber) throw new ApiError(400, "INVALID_INPUT", "Foto atau nomor antrian wajib");
-  const rel = file && ["mark-ready", "replace-proof"].includes(action) ? await saveImage(file, "order-proofs") : null;
+  if (action === "start-processing" && !file) throw new ApiError(400, "INVALID_INPUT", "Foto bukti pesanan wajib");
+  if (isOrderProof && !file && !queueNumber) throw new ApiError(400, "INVALID_INPUT", "Foto atau nomor antrean wajib");
+  const rel = file && (action === "start-processing" || isOrderProof) ? await saveImage(file, "order-proofs") : null;
   let oldPath: string | null = null;
   let committed = false;
   try {
@@ -93,22 +107,20 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
         await tx.update(payments).set({ status: "REJECTED", note }).where(and(eq(payments.orderId, id), inArray(payments.status, [...ACTIVE_PAYMENT])));
         await transition(tx, o, "CANCELLED", "admin", { ...opts, set: { cancelReason: "ADMIN" } });
       } else if (action === "start-processing") {
-        requireStatus(["PAID"], ["PROCESSING"]);
-        await transition(tx, o, "PROCESSING", "admin", opts);
-      } else if (action === "mark-ready") {
-        requireStatus(["PROCESSING"], ["READY"]);
-        oldPath = o.proofImagePath;
-        await transition(tx, o, "READY", "admin", { ...opts, set: { queueNumber, proofImagePath: rel } });
-      } else if (action === "replace-proof") {
-        requireStatus(["PROCESSING", "READY", "DONE"]);
-        oldPath = rel ? o.proofImagePath : null;
-        await tx.update(orders).set({ ...(queueNumber ? { queueNumber } : {}), ...(rel ? { proofImagePath: rel } : {}) }).where(eq(orders.id, id));
+        requireStatus(["PAID"], ["PROCESSING", "DONE"]);
+        oldPath = o.orderProofPath;
+        await transition(tx, o, "PROCESSING", "admin", { ...opts, set: { queueNumber, orderProofPath: rel, orderProofAt: new Date(), orderProofBy: adminId } });
+      } else if (isOrderProof) {
+        // Bukti pesanan di app brand (bukan bukti bayar pembeli). Bisa diunggah sejak PROCESSING, mengganti yang lama.
+        requireStatus(["PROCESSING", "DONE"]);
+        oldPath = rel ? o.orderProofPath : null;
+        await tx.update(orders).set({ ...(queueNumber ? { queueNumber } : {}), ...(rel ? { orderProofPath: rel, orderProofAt: new Date(), orderProofBy: adminId } : {}) }).where(eq(orders.id, id));
         await addEvent(tx, id, o.status, o.status, "ORDER_PROOF_UPLOADED", "admin", adminId, note);
       } else if (action === "mark-done") {
-        requireStatus(["READY"], ["DONE"]);
+        requireStatus(["PROCESSING"], ["DONE"]);
         await transition(tx, o, "DONE", "admin", opts);
       } else if (action === "fail") {
-        requireStatus(["PAID", "PROCESSING", "READY"], ["REFUND_REQUESTED"]);
+        requireStatus(["PAID", "PROCESSING"], ["REFUND_REQUESTED"]);
         await transition(tx, o, "REFUND_REQUESTED", "admin", { ...opts, note: reason });
       } else if (action === "mark-refunded") {
         requireStatus(["REFUND_REQUESTED"], ["REFUNDED"]);
@@ -124,7 +136,7 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
     const wa = bundle ? waOrderOf(bundle) : null;
     const waUrl = wa && action === "confirm-payment" ? waConfirmed(wa)
       : wa && action === "reject-payment" ? waRejected(wa, reason!, bundle!.o.expiresAt.toISOString())
-      : wa && action === "mark-ready" ? waReady(wa, bundle!.o.queueNumber!) : null;
+      : wa && action === "start-processing" ? waProcessing(wa, bundle!.o.queueNumber!) : null;
     return { ...result, waUrl };
   } catch (e) {
     if (rel && !committed) await removeStored(rel);

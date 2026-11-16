@@ -2,11 +2,23 @@ export const ORDER_PHASES = [
   ["PENDING_PAYMENT", "Menunggu pembayaran"],
   ["PROOF_SENT", "Bukti dikirim"],
   ["VERIFYING", "Verifikasi pembayaran"],
-  ["PAID", "Menunggu diproses"],
   ["PROCESSING", "Diproses"],
-  ["READY", "Siap diambil"],
   ["DONE", "Selesai"],
 ] as const;
+
+export function customerProgress(status: string, times: Record<string, string> = {}) {
+  const rank = ["PENDING_PAYMENT", "PROOF_SENT", "VERIFYING", "PAID", "PROCESSING", "DONE"].indexOf(status);
+  return {
+    label: rank < 0 ? null : ORDER_PHASES[rank <= 2 ? rank : rank === 5 ? 4 : 3][1],
+    steps: ORDER_PHASES.map(([phase, label], i) => {
+      const completedAt = [1, 1, 3, 4, 5][i];
+      const checked = rank >= completedAt;
+      const active = rank >= 0 && i === [0, 1, 2, 3, 3, 4][rank];
+      const timePhase = i === 2 ? (checked ? "PAID" : "VERIFYING") : phase;
+      return { phase, label, checked, active, at: checked || (active && i !== 3) ? times[timePhase] ?? null : null };
+    }),
+  };
+}
 
 export function normalizePhone(input: string): string {
   if (typeof input !== "string" || !/^(?:08\d{8,11}|628\d{8,11})$/.test(input)) {

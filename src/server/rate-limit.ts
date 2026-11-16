@@ -5,6 +5,8 @@ import { ApiError, hmac } from "./http";
 
 /** Rate limit atomik di DB (tabel request_limits). Kunci = HMAC(scope:id), tidak menyimpan IP/HP mentah. Lempar 429 + Retry-After. */
 export async function rateLimit(scope: string, id: string, max: number, windowSec: number) {
+  // Saklar dev: RATE_LIMIT_DISABLED=true. Diabaikan di production supaya tidak bisa mati tak sengaja.
+  if (process.env.RATE_LIMIT_DISABLED === "true" && process.env.NODE_ENV !== "production") return;
   const key = hmac(`${scope}:${id}`);
   const hit = await db.execute(sql`
     INSERT INTO request_limits (key, count, reset_at) VALUES (${key}, 1, now() + ${windowSec} * interval '1 second')

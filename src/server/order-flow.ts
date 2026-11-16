@@ -3,9 +3,9 @@ import { randomBytes } from "node:crypto";
 import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { brands, menuItems, orderCodeCounters, orderEvents, orderItems, orders, outlets, payments, paymentAccounts, promoPrices } from "@/db/schema";
-import { getActivePaymentAccount } from "@/lib/config";
 import { getMenuOptions } from "@/lib/menu-options";
-import { bookingCode, normalizePhone } from "@/lib/order-rules";
+import { getActivePaymentAccount } from "@/lib/config";
+import { bookingCode, customerProgress, normalizePhone } from "@/lib/order-rules";
 import { orderTotal, resolveOptions, unitPrice } from "@/lib/pricing";
 import { ApiError, appUrl, asInput, bad, type Input, pgErr } from "./http";
 import { removeStored, saveImage } from "./files";
@@ -23,8 +23,7 @@ const ALLOWED: Record<OrderStatus, OrderStatus[]> = {
   PROOF_SENT: ["VERIFYING", "PENDING_PAYMENT", "CANCELLED"],
   VERIFYING: ["PAID", "PENDING_PAYMENT", "CANCELLED"],
   PAID: ["PROCESSING", "REFUND_REQUESTED", "PENDING_PAYMENT"],
-  PROCESSING: ["READY", "REFUND_REQUESTED"],
-  READY: ["DONE", "REFUND_REQUESTED"],
+  PROCESSING: ["DONE", "REFUND_REQUESTED"],
   DONE: [],
   REFUND_REQUESTED: ["REFUNDED"],
   REFUNDED: [],
@@ -79,7 +78,7 @@ export async function newPendingPayment(tx: Tx, o: OrderRow) {
 const TOKEN_RE = /^[A-Za-z0-9_-]{22}$/;
 export const isToken = (t: string) => TOKEN_RE.test(t);
 
-export async function checkout(body: Input) {
+export async function checkout(body: Input, buyer: string | null) {
   const idem = body.has("idempotencyKey") ? body.uuid("idempotencyKey") : null;
   const brandSlug = body.str("brandSlug", 1, 40);
   const outletId = body.uuid("outletId");
@@ -139,7 +138,7 @@ export async function checkout(body: Input) {
       const [c] = await tx.insert(orderCodeCounters).values({ day, lastValue: 1 })
         .onConflictDoUpdate({ target: orderCodeCounters.day, set: { lastValue: sql`${orderCodeCounters.lastValue} + 1` } }).returning();
       const [o] = await tx.insert(orders).values({
-        trackingToken: token, orderCode: bookingCode(day, c.lastValue, brand.slug), idempotencyKey: idem,
+        trackingToken: token, orderCode: bookingCode(day, c.lastValue, brand.slug), idempotencyKey: idem, buyerHash: buyer,
         customerName: name, customerPhone: phone, outletId: outlet.id, subtotal, serviceFee: settings.serviceFee, uniqueCode: 0, total, expiresAt,
       }).returning();
       await tx.insert(orderItems).values(priced.map((p) => ({
@@ -203,11 +202,11 @@ export async function trackingView(token: string) {
     orderCode: b.o.orderCode, status: b.o.status, customerName: b.o.customerName, createdAt: b.o.createdAt, expiresAt: b.o.expiresAt, cancelReason: b.o.cancelReason,
     items: b.items.map((i) => ({ name: i.nameSnapshot, qty: i.qty, unitPrice: i.unitPrice, options: i.optionsSnapshot, note: i.note })),
     totals: { subtotal: b.o.subtotal, fee: b.o.serviceFee, uniqueCode: b.o.uniqueCode, total: b.o.total },
-    queueNumber: b.o.queueNumber, hasOrderProof: !!b.o.proofImagePath,
+    queueNumber: b.o.queueNumber, hasOrderProof: !!b.o.orderProofPath,
     outlet: { name: b.outletName, address: b.outletAddress, brand: b.brandName },
     paymentAccounts: accounts.map((a) => ({ id: a.id, type: a.type, provider: a.provider, accountName: a.accountName, qrisUrl: a.type === "QRIS_STATIC" ? `/api/qris/${a.id}` : null })),
     payment: pay ? { status: pay.status, hasProof: !!pay.proofImagePath, claimedAt: pay.proofClaimedAt } : null,
-    phases: phaseTimes(b.events), refundState, verifyEtaMin: settings.verifyEtaMin,
+    phases: phaseTimes(b.events), progress: customerProgress(b.o.status, phaseTimes(b.events)), refundState, verifyEtaMin: settings.verifyEtaMin,
     adminWa: settings.adminWa,
     waUrls: settings.adminWa ? { notifyAdmin: waNotifyAdmin(settings.adminWa, wa), help: waHelpAdmin(settings.adminWa, wa) } : null,
     trackingUrl: `${appUrl()}/pesanan/${token}`, itemSummary: itemSummary(wa.items),

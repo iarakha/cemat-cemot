@@ -14,7 +14,7 @@ export const GET = handle<{ params: Promise<{ kind: string; id: string }> }>(asy
     rel = p?.proofImagePath ?? null;
   } else if (kind === "order-proof") {
     const [o] = await db.select().from(orders).where(eq(orders.id, id));
-    rel = o?.proofImagePath ?? null;
+    rel = o?.orderProofPath ?? null;
   } else if (kind === "qris") {
     const [a] = await db.select().from(paymentAccounts).where(eq(paymentAccounts.id, id));
     rel = a?.qrisImagePath ?? null;

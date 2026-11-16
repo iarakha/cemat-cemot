@@ -9,7 +9,7 @@ import { isToken } from "@/server/order-flow";
 export const GET = handle<{ params: Promise<{ token: string; kind: string }> }>(async (_req, { params }) => {
   const { token, kind } = await params;
   if (!isToken(token) || (kind !== "payment-proof" && kind !== "order-proof")) throw NOT_FOUND;
-  const [o] = await db.select({ id: orders.id, proof: orders.proofImagePath }).from(orders).where(eq(orders.trackingToken, token));
+  const [o] = await db.select({ id: orders.id, proof: orders.orderProofPath }).from(orders).where(eq(orders.trackingToken, token));
   if (!o) throw NOT_FOUND;
   let rel = o.proof;
   if (kind === "payment-proof") {

@@ -9,12 +9,13 @@ const url = process.env.DATABASE_URL!;
 assert.match(new URL(url).pathname, /^\/cemat_cemot_api_test_/);
 const sql = postgres(url);
 let cookie = "";
+let buyerCookie = "";
 let tests = 0;
 async function call(path: string, status: number, body?: unknown, admin = false, method?: string) {
   const form = body instanceof FormData;
   const r = await fetch(base + path, { method: method ?? (body === undefined ? "GET" : "POST"), headers: {
     ...(body !== undefined && !form ? { "Content-Type": "application/json" } : {}),
-    ...(admin ? { Cookie: cookie } : {}),
+    ...(admin ? { Cookie: cookie } : buyerCookie ? { Cookie: buyerCookie } : {}),
   }, body: body === undefined ? undefined : form ? body : JSON.stringify(body) });
   assert.equal(r.status, status, `${path}: expected ${status}, got ${r.status} ${r.ok ? "" : await r.text()}`);
   tests++;
@@ -39,14 +40,28 @@ async function main() {
   const brand = catalog.brands[0], item = brand.items[0];
   const choices = item.options.flatMap((g: { required: boolean; choices: { id: string; isDefault: boolean }[] }) => g.required ? [g.choices.find(c=>c.isDefault)!.id] : []);
   const [outlet] = await sql`insert into outlets (brand_id,name,address,lat,lng) values (${brand.id},'Test Outlet','Test Address',-6.2,106.8) returning id`;
-  const payload = { idempotencyKey: randomUUID(), brandSlug:brand.slug,outletId:outlet.id,customer:{name:'Test Buyer',phone:'081234567890'},items:[{menuItemId:item.id,qty:1,choiceIds:choices}],expectedTotal:item.normalPrice+5000 };
-  await call('/api/checkout',409,{...payload,expectedTotal:1});
-  const responses = await Promise.all([0, 1].map(() => fetch(base+'/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})));
+  const cart = { brandSlug:brand.slug,outletId:outlet.id,items:[{menuItemId:item.id,qty:1,choiceIds:choices}] };
+  const customer = {name:'Test Buyer',phone:'081234567890'};
+  const total = item.normalPrice+5000;
+  const idem = randomUUID();
+  const checkoutBody = (expectedTotal = total) => ({ ...cart, idempotencyKey: idem, customer, expectedTotal });
+  await call('/api/cart',404);
+  const missingItems = await call('/api/checkout',400,{idempotencyKey:idem,brandSlug:brand.slug,outletId:outlet.id,customer,expectedTotal:total});
+  buyerCookie = missingItems.headers.get('set-cookie')!.split(';')[0];
+  await call('/api/checkout',400,{...checkoutBody(),items:[]});
+  await call('/api/checkout',400,{...checkoutBody(),items:[{menuItemId:item.id,qty:99,choiceIds:choices}]});
+  await call('/api/checkout',409,checkoutBody(1));
+  const responses = await Promise.all([0, 1].map(() => fetch(base+'/api/checkout',{method:'POST',headers:{'Content-Type':'application/json',Cookie:buyerCookie},body:JSON.stringify(checkoutBody())})));
   assert.deepEqual(responses.map(r => r.status).sort(), [200, 201]);
   const first = await responses[0].json(), second = await responses[1].json();
   tests += 2;
   assert.equal(first.token,second.token);
   assert.equal((await sql`select count(*)::int n from orders`)[0].n,1);
+  // Riwayat tanpa login: cookie perangkat yang sama melihat pesanan; perangkat lain kosong.
+  const hist = await (await call('/api/customer/orders',200)).json();
+  assert.equal(hist.orders.length,1);assert.equal(hist.orders[0].token,first.token);
+  const other = await fetch(base+'/api/customer/orders');assert.equal(other.status,200);tests++;
+  assert.equal((await other.json()).orders.length,0);
   const token = first.token;
   const [order] = await sql`select id,order_code from orders where tracking_token=${token}`;
   const tracking = await (await call(`/api/pesanan/${token}`,200)).json();
@@ -59,18 +74,41 @@ async function main() {
   await call(`/api/pesanan/${token}/proof`,415,bad);
   await call(`/api/pesanan/${token}/proof`,204,form());
   await call(`/api/pesanan/${token}/files/payment-proof`,200);
-  await call(`/api/admin/orders/${order.id}/confirm-payment`,409,{paidAmount:payload.expectedTotal,partnerCompanyId:partner.id,partnerAmount:10000},true);
+  await call(`/api/admin/orders/${order.id}/confirm-payment`,409,{paidAmount:total,partnerCompanyId:partner.id,partnerAmount:10000},true);
   await call(`/api/admin/orders/${order.id}/start-verification`,200,{},true);
   await call(`/api/pesanan/${token}/proof`,409,form());
-  await call(`/api/admin/orders/${order.id}/confirm-payment`,200,{paidAmount:payload.expectedTotal,partnerCompanyId:partner.id,partnerAmount:10000},true);
-  await call(`/api/admin/orders/${order.id}/start-processing`,200,{},true);
-  const ready = form();ready.set('queueNumber','A047');
-  await call(`/api/admin/orders/${order.id}/mark-ready`,200,ready,true);
+  await call(`/api/admin/orders/${order.id}/confirm-payment`,200,{paidAmount:total,partnerCompanyId:partner.id,partnerAmount:10000},true);
+  const early = form();early.set('queueNumber','A047');
+  await call(`/api/admin/orders/${order.id}/order-proof`,409,early,true); // masih PAID
+  await call(`/api/admin/orders/${order.id}/mark-done`,409,{},true);
+  await call(`/api/admin/orders/${order.id}/start-processing`,400,{},true);
+  const noPhoto = new FormData(); noPhoto.set('queueNumber','A047');
+  await call(`/api/admin/orders/${order.id}/start-processing`,400,noPhoto,true);
+  const noNumber = form();
+  await call(`/api/admin/orders/${order.id}/start-processing`,400,noNumber,true);
+  const invalidImage = new FormData(); invalidImage.set('queueNumber','A047'); invalidImage.set('file',new Blob(['invalid']),'bad.png');
+  await call(`/api/admin/orders/${order.id}/start-processing`,415,invalidImage,true);
+  const listed = (await (await call('/api/admin/orders?q=0812345',200,undefined,true)).json()).orders.find((o: {id:string}) => o.id===order.id);
+  assert.equal(listed.customerName,'Test Buyer');assert.equal(listed.customerPhone,'6281234567890');assert.equal(listed.queueNumber,null);assert.equal(listed.hasOrderProof,false);
+  const processing = form();processing.set('queueNumber','A047');
+  await call(`/api/admin/orders/${order.id}/start-processing`,200,processing,true);
+  await call(`/api/admin/orders/${order.id}/start-processing`,200,processing,true);
+  await call(`/api/admin/orders/${order.id}/mark-ready`,404,{},true);
+  const detail = await (await call(`/api/admin/orders/${order.id}`,200,undefined,true)).json();
+  assert.equal(detail.order.orderProof.exists,true);assert.equal(detail.payments.some((p: {hasProof:boolean}) => p.hasProof),true);
+  assert.equal((await sql`select count(*)::int n from payments where order_id=${order.id} and proof_image_path is not null`)[0].n,1); // bukti bayar tidak tertimpa
+  const swap = form();await call(`/api/admin/orders/${order.id}/order-proof`,200,swap,true);
+  const lst = (await (await call('/api/admin/orders?q=A047',200,undefined,true)).json()).orders;assert.equal(lst.length,1);
   const view = await (await call(`/api/pesanan/${token}`,200)).json();
-  assert.equal(view.status,'READY');assert.equal(view.queueNumber,'A047');
+  assert.equal(view.status,'PROCESSING');assert.equal(view.queueNumber,'A047');
+  assert.equal(view.progress.label,'Diproses');
+  assert.deepEqual(view.progress.steps.map((s: {checked:boolean})=>s.checked),[true,true,true,true,false]);
   await call(`/api/pesanan/${token}/files/order-proof`,200);
   await call(`/api/admin/orders/${order.id}/mark-done`,200,{},true);
-  await call('/api/customer/orders',401);
+  const done = await (await call(`/api/pesanan/${token}`,200)).json();
+  assert.equal(done.status,'DONE');
+  assert.deepEqual(done.progress.steps.map((s: {checked:boolean})=>s.checked),[true,true,true,true,true]);
+  await call(`/api/admin/orders/${order.id}/mark-done`,200,{},true);
   await call('/api/customer/otp/request',503,{challenge:'opaque'});
   await call('/api/admin/session',204,undefined,true,'DELETE');
   await call('/api/admin/session',401,undefined,true);

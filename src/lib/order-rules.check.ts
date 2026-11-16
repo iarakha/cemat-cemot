@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { bookingCode, historyPage, normalizePhone, ORDER_PHASES } from "./order-rules";
+import { bookingCode, customerProgress, historyPage, normalizePhone, ORDER_PHASES } from "./order-rules";
 
 assert.equal(normalizePhone("081234567890"), "6281234567890");
 assert.equal(normalizePhone("6281234567890"), "6281234567890");
@@ -14,5 +14,19 @@ assert.throws(() => bookingCode("2026-10-30", 0, "fore"));
 assert.throws(() => bookingCode("2026-10-30", 1, "unknown"));
 assert.deepEqual(historyPage(), { limit: 10, offset: 0 });
 for (const [limit, offset] of [[0, 0], [51, 0], [10, -1], [10, 0.5]]) assert.throws(() => historyPage(limit, offset));
-assert.deepEqual(ORDER_PHASES.map(([status]) => status), ["PENDING_PAYMENT", "PROOF_SENT", "VERIFYING", "PAID", "PROCESSING", "READY", "DONE"]);
+assert.deepEqual(ORDER_PHASES.map(([status]) => status), ["PENDING_PAYMENT", "PROOF_SENT", "VERIFYING", "PROCESSING", "DONE"]);
+for (const [status, label, checked] of [
+  ["PENDING_PAYMENT", "Menunggu pembayaran", [false, false, false, false, false]],
+  ["PROOF_SENT", "Bukti dikirim", [true, true, false, false, false]],
+  ["VERIFYING", "Verifikasi pembayaran", [true, true, false, false, false]],
+  ["PAID", "Diproses", [true, true, true, false, false]],
+  ["PROCESSING", "Diproses", [true, true, true, true, false]],
+  ["DONE", "Selesai", [true, true, true, true, true]],
+] as const) {
+  const progress = customerProgress(status);
+  assert.equal(progress.label, label);
+  assert.deepEqual(progress.steps.map(s => s.checked), checked);
+}
+assert.equal(customerProgress("UNKNOWN").label, null);
+assert.equal(customerProgress("PAID", { VERIFYING: "14.33", PAID: "14.35" }).steps[2].at, "14.35");
 console.log("order rules ok");

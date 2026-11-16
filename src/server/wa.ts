@@ -29,5 +29,5 @@ export const waConfirmed = (o: WaOrder) => waLink(o.customerPhone, cut(
   `Halo ${o.customerName}, pembayaran pesanan ${o.orderCode} sebesar Rp${rp(o.total)} sudah kami terima. Pesananmu masuk proses. Pantau di ${url(o)}`));
 export const waRejected = (o: WaOrder, reason: string, deadline: string) => waLink(o.customerPhone, cut(
   `Halo ${o.customerName}, pembayaran pesanan ${o.orderCode} belum bisa kami konfirmasi: ${reason}. Mohon unggah bukti yang benar di link pesanan sebelum ${deadline}. ${url(o)}`));
-export const waReady = (o: WaOrder, queueNumber: string) => waLink(o.customerPhone, cut(
-  `Halo ${o.customerName}, pesanan ${o.orderCode} siap diambil di ${o.outlet}. Nomor antrian: ${queueNumber}. Tunjukkan ke kasir. Foto bukti pesanan ada di ${url(o)}`));
+export const waProcessing = (o: WaOrder, queueNumber: string) => waLink(o.customerPhone, cut(
+  `Halo ${o.customerName}, pesanan ${o.orderCode} sedang diproses di ${o.outlet}. Nomor antrean: ${queueNumber}. Tunjukkan ke kasir. Foto bukti pesanan ada di ${url(o)}`));
