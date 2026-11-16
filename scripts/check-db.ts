@@ -77,7 +77,7 @@ async function main() {
       }
       await reject(`UPDATE orders SET total = 1 WHERE id = '${order.id}'`, "23514", "orders_total_chk");
       await reject(`UPDATE orders SET unique_code = 100, total = 25100 WHERE id = '${order.id}'`, "23514", "orders_unique_code_chk");
-      await reject(`UPDATE orders SET status = 'READY' WHERE id = '${order.id}'`, "23514", "orders_ready_chk");
+      await reject(`UPDATE orders SET status = 'PROCESSING' WHERE id = '${order.id}'`, "23514", "orders_processing_proof_chk");
       await reject(`UPDATE order_items SET qty = 0 WHERE order_id = '${order.id}'`, "23514", "order_items_qty_chk");
       await reject(`DELETE FROM menu_items WHERE id = '${menu.id}'`, "23503");
       await reject(`INSERT INTO payments (order_id, expected_amount) VALUES ('${order.id}', 25000)`, "23505", "payments_active_order_uq");
@@ -96,7 +96,7 @@ async function main() {
       assert.equal(verified.partner_amount, 20000);
       checks++;
       await reject(`DELETE FROM partner_companies WHERE id = '${partner.id}'`, "23503");
-      await tx`UPDATE orders SET status = 'READY', queue_number = 'A047', proof_image_path = 'check/proof.png' WHERE id = ${order.id}`;
+      await tx`UPDATE orders SET status = 'PROCESSING', queue_number = 'A047', order_proof_path = 'check/proof.png' WHERE id = ${order.id}`;
       checks++;
       throw rollback;
     });

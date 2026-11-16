@@ -92,6 +92,34 @@
       "when": 1793454691715,
       "tag": "0012_payment_window_15",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793529633004,
+      "tag": "0013_cart_buyer_order_proof",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793531159710,
+      "tag": "0014_mute_leo",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794750731652,
+      "tag": "0015_ui_order_flow",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1794800138935,
+      "tag": "0016_clear_energizer",
+      "breakpoints": true
     }
   ]
 }

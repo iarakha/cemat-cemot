@@ -7,7 +7,7 @@ import {
 // Semua harga = integer rupiah.
 export const outletSource = pgEnum("outlet_source", ["OSM", "MANUAL"]);
 export const orderStatus = pgEnum("order_status", [
-  "PENDING_PAYMENT", "PROOF_SENT", "VERIFYING", "PAID", "PROCESSING", "READY", "DONE",
+  "PENDING_PAYMENT", "PROOF_SENT", "VERIFYING", "PAID", "PROCESSING", "DONE",
   "REFUND_REQUESTED", "REFUNDED", "CANCELLED",
 ]);
 export const paymentStatus = pgEnum("payment_status", ["PENDING", "PROOF_SENT", "VERIFYING", "VERIFIED", "REJECTED", "EXPIRED"]);
@@ -118,8 +118,12 @@ export const orders = pgTable("orders", {
   uniqueCode: integer("unique_code").notNull().default(0), // legacy; order QRIS baru selalu 0
   total: integer("total").notNull(), // subtotal + service_fee + unique_code
   expiresAt: ts("expires_at").notNull(),
-  queueNumber: text("queue_number"), // kode pickup string dari admin; dash opsional, tidak unik
-  proofImagePath: text("proof_image_path"), // foto bukti pesanan dari admin, relatif ke UPLOAD_DIR
+  queueNumber: text("queue_number"), // nomor antrean dari admin; dash opsional, tidak unik
+  // Bukti order di app brand (screenshot dari admin). Terpisah dari bukti bayar pembeli (payments.proof_image_path).
+  orderProofPath: text("order_proof_path"), // relatif ke UPLOAD_DIR
+  orderProofAt: ts("order_proof_at"),
+  orderProofBy: uuid("order_proof_by").references(() => adminUsers.id),
+  buyerHash: text("buyer_hash"), // SHA-256 cookie perangkat pembeli; dasar riwayat tanpa OTP
   cancelReason: text("cancel_reason"),
   refundMethod: text("refund_method"), // BANK | EWALLET
   refundProvider: text("refund_provider"),
@@ -133,18 +137,19 @@ export const orders = pgTable("orders", {
   index("orders_phone_idx").on(t.customerPhone),
   index("orders_history_idx").on(t.customerPhone, t.createdAt, t.id),
   index("orders_queue_idx").on(t.queueNumber),
+  index("orders_buyer_idx").on(t.buyerHash, t.createdAt, t.id),
   index("orders_created_idx").on(t.createdAt),
   index("orders_total_idx").on(t.total),
   uniqueIndex("orders_active_unique_code_uq").on(t.uniqueCode)
     // Aktif = PENDING_PAYMENT/PROOF_SENT. Ditulis sebagai NOT IN status lain karena nilai enum baru
     // (PROOF_SENT) tidak boleh dipakai di transaksi migrasi yang sama. Perbarui jika status ditambah.
-    .where(sql`${t.uniqueCode} > 0 AND ${t.status} NOT IN ('PAID', 'PROCESSING', 'READY', 'DONE', 'REFUND_REQUESTED', 'REFUNDED', 'CANCELLED')`),
+    .where(sql`${t.uniqueCode} > 0 AND ${t.status} NOT IN ('PAID', 'PROCESSING', 'DONE', 'REFUND_REQUESTED', 'REFUNDED', 'CANCELLED')`),
   check("orders_total_chk", sql`${t.total} = ${t.subtotal} + ${t.serviceFee} + ${t.uniqueCode}`),
   check("orders_money_chk", sql`${t.subtotal} >= 0 AND ${t.serviceFee} >= 0`),
   check("orders_unique_code_chk", sql`${t.uniqueCode} BETWEEN 0 AND 99`),
   check("orders_queue_format_chk", sql`${t.queueNumber} IS NULL OR (char_length(btrim(${t.queueNumber})) BETWEEN 1 AND 64 AND ${t.queueNumber} !~ '[[:cntrl:]]')`),
   check("orders_phone_chk", sql`${t.customerPhone} ~ '^628[0-9]{8,11}$'`),
-  check("orders_ready_chk", sql`${t.status} NOT IN ('READY', 'DONE') OR (${t.queueNumber} IS NOT NULL AND ${t.proofImagePath} IS NOT NULL)`),
+  check("orders_processing_proof_chk", sql`${t.status} NOT IN ('PROCESSING', 'DONE') OR (nullif(btrim(${t.queueNumber}), '') IS NOT NULL AND nullif(btrim(${t.orderProofPath}), '') IS NOT NULL)`),
 ]);
 
 export const orderItems = pgTable("order_items", {
