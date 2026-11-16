@@ -187,6 +187,7 @@ export const partnerCompanies = pgTable("partner_companies", {
   name: text("name").notNull(),
   phone: text("phone"), // opsional; jika diisi format 62...
   website: text("website"),
+  notes: text("notes"), // mis. "minimal pembelian 2 item"
   isActive: boolean("is_active").notNull().default(true),
   createdAt: ts("created_at").notNull().defaultNow(),
 }, (t) => [
@@ -251,10 +252,23 @@ export const storeSettings = pgTable("store_settings", {
   useUniqueCode: boolean("use_unique_code").notNull().default(false),
   maxCups: integer("max_cups").notNull().default(10),
   closedMessage: text("closed_message"),
+  autoSchedule: boolean("auto_schedule").notNull().default(false), // true: jadwal per hari menentukan buka/tutup
+  statusChangedAt: ts("status_changed_at").notNull().defaultNow(), // pilihan manual menang sampai batas jadwal berikutnya
 }, (t) => [
   check("store_settings_singleton_chk", sql`${t.id} = 1`),
   check("store_settings_wa_chk", sql`${t.adminWa} IS NULL OR ${t.adminWa} ~ '^62[0-9]{8,13}$'`),
   check("store_settings_limits_chk", sql`${t.paymentWindowMin} > 0 AND ${t.checkoutCutoffMin} >= 0 AND ${t.verifyEtaMin} > 0 AND ${t.maxCups} > 0 AND ${t.serviceFee} >= 0`),
+]);
+
+// Override jam per hari (0=Minggu..6=Sabtu, Asia/Jakarta). Hari tanpa baris memakai store_settings.open_at/close_at.
+export const storeSchedule = pgTable("store_schedule", {
+  day: integer("day").primaryKey(),
+  isClosed: boolean("is_closed").notNull().default(false),
+  openAt: time("open_at"),
+  closeAt: time("close_at"),
+}, (t) => [
+  check("store_schedule_day_chk", sql`${t.day} BETWEEN 0 AND 6`),
+  check("store_schedule_hours_chk", sql`${t.isClosed} OR (${t.openAt} IS NOT NULL AND ${t.closeAt} IS NOT NULL AND ${t.openAt} < ${t.closeAt})`),
 ]);
 
 export const adminUsers = pgTable("admin_users", {

@@ -120,6 +120,13 @@
       "when": 1794800138935,
       "tag": "0016_clear_energizer",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794845211609,
+      "tag": "0017_partner_notes_store_schedule",
+      "breakpoints": true
     }
   ]
 }
