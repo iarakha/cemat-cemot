@@ -1,0 +1,299 @@
+{
+  "info": {
+    "name": "Cemat Cemot - Checkout Dummy (DB lokal)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "5 payload checkout berdasarkan katalog/outlet/opsi/harga DB lokal melalui API http://localhost:3210. Nama buyer dummy; customer_phone diisi lokal. Import Local.postman_environment.json. Default allow_mutations=false; collection ini tidak otomatis menulis DB. Set true dan Send akan membuat order sungguhan PENDING_PAYMENT. Jangan gunakan di produksi. Setiap brand punya idempotency key tersendiri; retry mempertahankan key. Harga snapshot perlu direfresh bila berubah; jangan otomatis menerima PRICE_CHANGED."
+  },
+  "item": [
+    {
+      "name": "01 - Fore Coffee - Americano",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/checkout",
+        "description": "Dummy buyer; menu/outlet/opsi/harga dibaca dari DB melalui API lokal. Outlet: Petamburan Hub. Total snapshot Rp29,000. HTTP checkout belum dijalankan saat pembuatan collection; harga/jam toko dapat berubah.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idempotencyKey\": \"{{checkout_dummy_key}}\",\n  \"brandSlug\": \"fore\",\n  \"outletId\": \"034c64cb-4ace-afbd-5bc7-f64957a34ba8\",\n  \"customer\": {\n    \"name\": \"Dummy Fore Coffee\",\n    \"phone\": \"{{customer_phone}}\"\n  },\n  \"items\": [\n    {\n      \"menuItemId\": \"d04d425a-7b9f-480c-8281-ad31b941a36f\",\n      \"qty\": 1,\n      \"choiceIds\": [\n        \"843ed8e0-e8e2-481b-bfea-f6e513387762\",\n        \"b4db8098-c99b-4eea-beb9-633f63056f5f\",\n        \"53855451-8eae-457d-9030-53d6badafa5d\",\n        \"272ead34-b428-436a-89d1-7f0514c81f16\"\n      ],\n      \"note\": \"Dummy checkout Postman - bukan pesanan pelanggan\"\n    }\n  ],\n  \"expectedTotal\": 29000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+              "  pm.execution.skipRequest();",
+              "  throw new Error(\"Checkout menulis order ke DB. Set allow_mutations=true hanya bila sudah siap.\");",
+              "}",
+              "if (!/^(?:08\\d{8,11}|628\\d{8,11})$/.test(pm.environment.get(\"customer_phone\") || \"\")) {",
+              "  pm.execution.skipRequest();",
+              "  throw new Error(\"Isi customer_phone dengan nomor test milik sendiri, format 08/628.\");",
+              "}",
+              "const keyName = \"checkout_dummy_fore_key\";",
+              "if (!pm.environment.get(keyName)) pm.environment.set(keyName, pm.variables.replaceIn(\"{{$guid}}\"));",
+              "pm.variables.set(\"checkout_dummy_key\", pm.environment.get(keyName));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+              "if ([200,201].includes(pm.response.code)) pm.environment.set(\"tracking_token\",pm.response.json().token);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "02 - Kopi Kenangan - Americano",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/checkout",
+        "description": "Dummy buyer; menu/outlet/opsi/harga dibaca dari DB melalui API lokal. Outlet: Kopi Kenangan - Ruko KS Tubun Jakarta Barat. Total snapshot Rp27,000. HTTP checkout belum dijalankan saat pembuatan collection; harga/jam toko dapat berubah.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idempotencyKey\": \"{{checkout_dummy_key}}\",\n  \"brandSlug\": \"kopi-kenangan\",\n  \"outletId\": \"f9b12512-e432-c4a1-2314-e9f4daef7d44\",\n  \"customer\": {\n    \"name\": \"Dummy Kopi Kenangan\",\n    \"phone\": \"{{customer_phone}}\"\n  },\n  \"items\": [\n    {\n      \"menuItemId\": \"2ed62324-c8f2-4a69-b104-d049314855fc\",\n      \"qty\": 1,\n      \"choiceIds\": [\n        \"843ed8e0-e8e2-481b-bfea-f6e513387762\",\n        \"b4db8098-c99b-4eea-beb9-633f63056f5f\",\n        \"53855451-8eae-457d-9030-53d6badafa5d\",\n        \"272ead34-b428-436a-89d1-7f0514c81f16\"\n      ],\n      \"note\": \"Dummy checkout Postman - bukan pesanan pelanggan\"\n    }\n  ],\n  \"expectedTotal\": 27000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+              "  pm.execution.skipRequest();",
+              "  throw new Error(\"Checkout menulis order ke DB. Set allow_mutations=true hanya bila sudah siap.\");",
+              "}",
+              "if (!/^(?:08\\d{8,11}|628\\d{8,11})$/.test(pm.environment.get(\"customer_phone\") || \"\")) {",
+              "  pm.execution.skipRequest();",
+              "  throw new Error(\"Isi customer_phone dengan nomor test milik sendiri, format 08/628.\");",
+              "}",
+              "const keyName = \"checkout_dummy_kopi_kenangan_key\";",
+              "if (!pm.environment.get(keyName)) pm.environment.set(keyName, pm.variables.replaceIn(\"{{$guid}}\"));",
+              "pm.variables.set(\"checkout_dummy_key\", pm.environment.get(keyName));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+              "if ([200,201].includes(pm.response.code)) pm.environment.set(\"tracking_token\",pm.response.json().token);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "03 - Cotti Coffee - Americano",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/checkout",
+        "description": "Dummy buyer; menu/outlet/opsi/harga dibaca dari DB melalui API lokal. Outlet: Cotti Coffee - Kemanggisan. Total snapshot Rp21,000. HTTP checkout belum dijalankan saat pembuatan collection; harga/jam toko dapat berubah.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idempotencyKey\": \"{{checkout_dummy_key}}\",\n  \"brandSlug\": \"cotti\",\n  \"outletId\": \"9ebbd401-c389-1612-90c5-d9154a49a1e5\",\n  \"customer\": {\n    \"name\": \"Dummy Cotti Coffee\",\n    \"phone\": \"{{customer_phone}}\"\n  },\n  \"items\": [\n    {\n      \"menuItemId\": \"d11bfc87-2dcd-4329-ad17-8e6c4447cd0e\",\n      \"qty\": 1,\n      \"choiceIds\": [\n        \"843ed8e0-e8e2-481b-bfea-f6e513387762\",\n        \"b4db8098-c99b-4eea-beb9-633f63056f5f\",\n        \"53855451-8eae-457d-9030-53d6badafa5d\",\n        \"272ead34-b428-436a-89d1-7f0514c81f16\"\n      ],\n      \"note\": \"Dummy checkout Postman - bukan pesanan pelanggan\"\n    }\n  ],\n  \"expectedTotal\": 21000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+              "  pm.execution.skipRequest();",
+              "  throw new Error(\"Checkout menulis order ke DB. Set allow_mutations=true hanya bila sudah siap.\");",
+              "}",
+              "if (!/^(?:08\\d{8,11}|628\\d{8,11})$/.test(pm.environment.get(\"customer_phone\") || \"\")) {",
+              "  pm.execution.skipRequest();",
+              "  throw new Error(\"Isi customer_phone dengan nomor test milik sendiri, format 08/628.\");",
+              "}",
+              "const keyName = \"checkout_dummy_cotti_key\";",
+              "if (!pm.environment.get(keyName)) pm.environment.set(keyName, pm.variables.replaceIn(\"{{$guid}}\"));",
+              "pm.variables.set(\"checkout_dummy_key\", pm.environment.get(keyName));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+              "if ([200,201].includes(pm.response.code)) pm.environment.set(\"tracking_token\",pm.response.json().token);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "04 - Janji Jiwa - Americano",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/checkout",
+        "description": "Dummy buyer; menu/outlet/opsi/harga dibaca dari DB melalui API lokal. Outlet: Janji Jiwa Culture - Senopati. Total snapshot Rp22,000. HTTP checkout belum dijalankan saat pembuatan collection; harga/jam toko dapat berubah.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idempotencyKey\": \"{{checkout_dummy_key}}\",\n  \"brandSlug\": \"janji-jiwa\",\n  \"outletId\": \"74265f9a-4de7-4f38-3999-fee709e3f516\",\n  \"customer\": {\n    \"name\": \"Dummy Janji Jiwa\",\n    \"phone\": \"{{customer_phone}}\"\n  },\n  \"items\": [\n    {\n      \"menuItemId\": \"f9f18b5c-f0c3-41ee-ad6b-2a12dc0fe981\",\n      \"qty\": 1,\n      \"choiceIds\": [\n        \"843ed8e0-e8e2-481b-bfea-f6e513387762\",\n        \"b4db8098-c99b-4eea-beb9-633f63056f5f\",\n        \"53855451-8eae-457d-9030-53d6badafa5d\",\n        \"272ead34-b428-436a-89d1-7f0514c81f16\"\n      ],\n      \"note\": \"Dummy checkout Postman - bukan pesanan pelanggan\"\n    }\n  ],\n  \"expectedTotal\": 22000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+              "  pm.execution.skipRequest();",
+              "  throw new Error(\"Checkout menulis order ke DB. Set allow_mutations=true hanya bila sudah siap.\");",
+              "}",
+              "if (!/^(?:08\\d{8,11}|628\\d{8,11})$/.test(pm.environment.get(\"customer_phone\") || \"\")) {",
+              "  pm.execution.skipRequest();",
+              "  throw new Error(\"Isi customer_phone dengan nomor test milik sendiri, format 08/628.\");",
+              "}",
+              "const keyName = \"checkout_dummy_janji_jiwa_key\";",
+              "if (!pm.environment.get(keyName)) pm.environment.set(keyName, pm.variables.replaceIn(\"{{$guid}}\"));",
+              "pm.variables.set(\"checkout_dummy_key\", pm.environment.get(keyName));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+              "if ([200,201].includes(pm.response.code)) pm.environment.set(\"tracking_token\",pm.response.json().token);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "05 - Tomoro Coffee - Americano",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/checkout",
+        "description": "Dummy buyer; menu/outlet/opsi/harga dibaca dari DB melalui API lokal. Outlet: TOMORO COFFEE - SPBU S. Parman. Total snapshot Rp23,000. HTTP checkout belum dijalankan saat pembuatan collection; harga/jam toko dapat berubah.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"idempotencyKey\": \"{{checkout_dummy_key}}\",\n  \"brandSlug\": \"tomoro\",\n  \"outletId\": \"e1392112-b14a-ef1b-f71f-2fa986b0f4c5\",\n  \"customer\": {\n    \"name\": \"Dummy Tomoro Coffee\",\n    \"phone\": \"{{customer_phone}}\"\n  },\n  \"items\": [\n    {\n      \"menuItemId\": \"6960a755-7082-45d0-9f39-0460aeac22d1\",\n      \"qty\": 1,\n      \"choiceIds\": [\n        \"843ed8e0-e8e2-481b-bfea-f6e513387762\",\n        \"b4db8098-c99b-4eea-beb9-633f63056f5f\",\n        \"53855451-8eae-457d-9030-53d6badafa5d\",\n        \"272ead34-b428-436a-89d1-7f0514c81f16\"\n      ],\n      \"note\": \"Dummy checkout Postman - bukan pesanan pelanggan\"\n    }\n  ],\n  \"expectedTotal\": 23000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+              "  pm.execution.skipRequest();",
+              "  throw new Error(\"Checkout menulis order ke DB. Set allow_mutations=true hanya bila sudah siap.\");",
+              "}",
+              "if (!/^(?:08\\d{8,11}|628\\d{8,11})$/.test(pm.environment.get(\"customer_phone\") || \"\")) {",
+              "  pm.execution.skipRequest();",
+              "  throw new Error(\"Isi customer_phone dengan nomor test milik sendiri, format 08/628.\");",
+              "}",
+              "const keyName = \"checkout_dummy_tomoro_key\";",
+              "if (!pm.environment.get(keyName)) pm.environment.set(keyName, pm.variables.replaceIn(\"{{$guid}}\"));",
+              "pm.variables.set(\"checkout_dummy_key\", pm.environment.get(keyName));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 201]); });",
+              "if ([200,201].includes(pm.response.code)) pm.environment.set(\"tracking_token\",pm.response.json().token);"
+            ]
+          }
+        }
+      ],
+      "response": []
+    }
+  ]
+}

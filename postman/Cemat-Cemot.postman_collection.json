@@ -1,0 +1,2990 @@
+{
+  "info": {
+    "_postman_id": "0ec19924-54bd-4b4d-a722-9dfb3860665c",
+    "name": "Cemat Cemot - Backend API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Kontrak implementasi lokal, bukan seluruh RND selesai. Mulai folder 01; login admin untuk folder guarded. OTP sengaja 503. Jangan Run collection penuh: cabang order saling eksklusif; ada operasi DB dan akun sensitif. allow_mutations default false. Tidak ada password, cookie, token atau credential nyata dalam export. Lihat README.md."
+  },
+  "item": [
+    {
+      "name": "01 - Read-only publik",
+      "description": "Mulai: Health, Store, Catalog, lalu Outlets. Skrip menyimpan ID dan total untuk checkout. Tidak ada mutasi.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/health",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "if (pm.response.code === 200) pm.test(\"DB sehat\", () => pm.expect(pm.response.json().ok).to.eql(true));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Store - simpan fee dan operasional",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/store",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "if (pm.response.code === 200) {",
+                  "  const s=pm.response.json();",
+                  "  pm.environment.set(\"service_fee\",s.serviceFee);",
+                  "  pm.environment.set(\"admin_wa\",s.adminWa || \"\");",
+                  "  pm.environment.set(\"settings_json\",JSON.stringify(s));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Catalog - pilih menu pertama dan default wajib",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/catalog",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "if (pm.response.code === 200) {",
+                  "  const brands=pm.response.json().brands;",
+                  "  const b=brands.find(b=>b.slug===pm.environment.get(\"brand_slug\")) || brands.find(b=>b.items.length);",
+                  "  if (!b || !b.items.length) throw new Error(\"Katalog kosong\");",
+                  "  const m=b.items[0], selected=[];",
+                  "  for (const g of m.options) {",
+                  "    if (g.required) {",
+                  "      const c=g.choices.find(c=>c.isDefault);",
+                  "      if (!c) throw new Error(\"Grup wajib tanpa default: \"+g.name);",
+                  "      selected.push(c);",
+                  "    }",
+                  "  }",
+                  "  const price=m.promo ? m.promo.final : m.normalPrice;",
+                  "  const subtotal=Math.max(0,price+selected.reduce((s,c)=>s+c.priceDelta,0));",
+                  "  pm.environment.set(\"brand_id\",b.id);",
+                  "  pm.environment.set(\"brand_slug\",b.slug);",
+                  "  pm.environment.set(\"menu_item_id\",m.id);",
+                  "  pm.environment.set(\"choice_ids\",JSON.stringify(selected.map(c=>c.id)));",
+                  "  pm.environment.set(\"subtotal\",subtotal);",
+                  "  const fee=pm.environment.get(\"service_fee\");",
+                  "  if (fee === undefined || fee === \"\") throw new Error(\"Jalankan Store dulu\");",
+                  "  pm.environment.set(\"expected_total\",subtotal+Number(fee));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Outlets - lokasi terdekat dan simpan outletId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/outlets?brand={{brand_slug}}&lat={{lat}}&lng={{lng}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "if (pm.response.code === 200) {",
+                  " const rows=pm.response.json();",
+                  " pm.test(\"Maks 10 outlet\",()=>pm.expect(rows.length).to.be.at.most(10));",
+                  " if(rows.length) pm.environment.set(\"outlet_id\",rows[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Outlets - cari area",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/outlets?brand={{brand_slug}}&q={{outlet_query}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "QRIS aktif",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/qris/{{payment_account_id}}",
+            "description": "Isi ID dari tracking atau daftar rekening admin.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Admin session",
+      "description": "Postman cookie jar menyimpan Set-Cookie otomatis. Isi admin_password secara lokal, jangan share/export nilai rahasia. Jangan nonaktifkan cookie jar.",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/session",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{admin_username}}\",\n  \"password\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Session aktif",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/session",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 401]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{base_url}}/api/admin/session",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([204]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "03 - Checkout dan tracking",
+      "description": "Mutasi nyata. Jangan Run seluruh collection pada DB operasional. Urutan: folder 01, login, daftar partner, checkout, tracking, upload, admin actions.",
+      "item": [
+        {
+          "name": "Checkout - buat / replay order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/checkout",
+            "description": "Keranjang disimpan di localStorage; kirim brandSlug, outletId, items, customer, expectedTotal ke checkout. Server validasi menu/opsi/outlet/batas cup dan hitung ulang harga. 409 PRICE_CHANGED perlu persetujuan ulang. idempotency_key baru per pesanan; pertahankan untuk replay. Cookie perangkat dibuat saat checkout untuk riwayat.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idempotencyKey\":\"{{idempotency_key}}\",\n  \"brandSlug\":\"{{brand_slug}}\",\n  \"outletId\":\"{{outlet_id}}\",\n  \"customer\":{\"name\":\"{{customer_name}}\",\"phone\":\"{{customer_phone}}\"},\n  \"items\":[{\"menuItemId\":\"{{menu_item_id}}\",\"qty\":1,\"choiceIds\":{{choice_ids}},\"note\":\"Postman test\"}],\n  \"expectedTotal\":{{expected_total}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get(\"idempotency_key\")) pm.environment.set(\"idempotency_key\",pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Response JSON tampil (status \" + pm.response.code + \")\", function () { pm.response.to.have.jsonBody(); });",
+                  "const body = pm.response.json();",
+                  "if ([200,201].includes(pm.response.code)) {",
+                  "  pm.environment.set(\"tracking_token\", body.token);",
+                  "} else if (body.error) {",
+                  "  // Error terstruktur dari API: {error:{code,message,field?}}. Contoh: STORE_CLOSED, INVALID_INPUT, PRICE_CHANGED",
+                  "  console.log(\"Checkout ditolak:\", body.error.code, \"-\", body.error.message, body.error.field || \"\");",
+                  "  pm.test(\"Error terstruktur: \" + body.error.code, function () { pm.expect(body.error).to.have.property(\"code\"); pm.expect(body.error).to.have.property(\"message\"); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Tracking - simpan booking dan QRIS",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/pesanan/{{tracking_token}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "if (pm.response.code===200) {",
+                  " const o=pm.response.json();",
+                  " pm.environment.set(\"order_code\",o.orderCode);",
+                  " pm.environment.set(\"expected_total\",o.totals.total);",
+                  " pm.environment.set(\"subtotal\",o.totals.subtotal);",
+                  " if(o.queueNumber) pm.environment.set(\"queue_number\",o.queueNumber);",
+                  " if(o.paymentAccounts.length) pm.environment.set(\"payment_account_id\",o.paymentAccounts[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Upload bukti bayar",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/pesanan/{{tracking_token}}/proof",
+            "description": "PENDING_PAYMENT / PROOF_SENT. VERIFYING menolak 409. Expired 410.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Pilih gambar JPEG/PNG/WebP <=10 MB dari komputer."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([204]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Lihat payment-proof",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/pesanan/{{tracking_token}}/files/payment-proof",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Lihat order-proof",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/pesanan/{{tracking_token}}/files/order-proof",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Isi rekening refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/pesanan/{{tracking_token}}/refund-account",
+            "description": "Hanya REFUND_REQUESTED.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"method\": \"EWALLET\",\n  \"provider\": \"DANA\",\n  \"accountNo\": \"{{customer_phone}}\",\n  \"accountName\": \"{{customer_name}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([204]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "04 - Recovery customer / OTP belum tersedia",
+      "description": "Tanpa cookie terverifikasi, lookup generik 202. Provider belum ada: OTP 503, history 401. Tidak ada bypass atau OTP dummy.",
+      "item": [
+        {
+          "name": "Lookup phone",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/pesanan/lookup",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"phone\",\n  \"value\": \"{{customer_phone}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 202]); });",
+                  "if(pm.response.code===202) pm.environment.set(\"otp_challenge\",pm.response.json().challenge);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Lookup booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/pesanan/lookup",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"booking\",\n  \"value\": \"{{order_code}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 202]); });",
+                  "if(pm.response.code===202) pm.environment.set(\"otp_challenge\",pm.response.json().challenge);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Lookup pickup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/pesanan/lookup",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"pickup\",\n  \"value\": \"{{queue_number}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 202]); });",
+                  "if(pm.response.code===202) pm.environment.set(\"otp_challenge\",pm.response.json().challenge);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Request OTP - expected 503",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/customer/otp/request",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challenge\": \"{{otp_challenge}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([503]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Verify OTP - expected 503",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/customer/otp/verify",
+            "description": "challengeId harus UUID. Belum ada challenge nyata dari provider; UUID dummy environment hanya untuk memeriksa fail-closed, bukan OTP yang bisa dipakai.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challengeId\": \"{{otp_challenge_id}}\",\n  \"otp\": \"{{otp_code}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([503]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Riwayat pesanan perangkat ini (cookie) / OTP",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/customer/orders?limit=10&offset=0",
+            "description": "Order dari perangkat ini (cookie cc_buyer) atau nomor HP ber-OTP. Tanpa identitas: 200 daftar kosong.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "05 - Admin order actions",
+      "description": "Login dahulu. Semua mutasi memerlukan allow_mutations=true. Cabang reject/reopen/refund adalah alternatif, bukan satu urutan runner. Nominal dan partner harus dicocokkan manual terhadap mutasi pembayaran.",
+      "item": [
+        {
+          "name": "Daftar order - cari booking simpan orderId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/orders?limit=50&offset=0&q={{order_code}}",
+            "description": "Daftar order: customerName, customerPhone, queueNumber, brand, outlet, hasOrderProof. q = cari kode booking, nomor antrean, nama, atau potongan HP.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "if(pm.response.code===200) {",
+                  " const rows=pm.response.json().orders;",
+                  " const o=rows.find(o=>o.orderCode===pm.environment.get(\"order_code\"));",
+                  " if(o) pm.environment.set(\"order_id\",o.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Antrean PAID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/orders?status=PAID&limit=20&offset=0",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Detail - simpan paymentId",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "if(pm.response.code===200) {",
+                  " const b=pm.response.json();",
+                  " const p=b.payments.find(p=>[\"PENDING\",\"PROOF_SENT\",\"VERIFYING\"].includes(p.status)) || b.payments[0];",
+                  " if(p) pm.environment.set(\"payment_id\",p.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Upload bukti bayar oleh admin",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/payment-proof",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Pilih gambar JPEG/PNG/WebP <=10 MB dari komputer."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Mulai verifikasi",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/start-verification",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Konfirmasi pembayaran",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/confirm-payment",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"paidAmount\":{{expected_total}},\"partnerCompanyId\":\"{{partner_id}}\",\"partnerAmount\":{{subtotal}},\"note\":\"{{audit_note}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Isi nomor antrean dan mulai proses",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/start-processing",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "queueNumber",
+                  "type": "text",
+                  "value": "{{queue_number}}"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Pilih gambar JPEG/PNG/WebP <=10 MB dari komputer."
+                },
+                {
+                  "key": "note",
+                  "type": "text",
+                  "value": "{{audit_note}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Bukti order (app brand) - unggah / ganti + nomor antrean",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/order-proof",
+            "description": "Bukti ORDER dari app brand (screenshot admin), BUKAN bukti bayar pembeli. Boleh sejak PROCESSING; DONE menggantikan yang lama. Bukti bayar pembeli tidak berubah.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "queueNumber",
+                  "type": "text",
+                  "value": "{{queue_number}}"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Pilih gambar JPEG/PNG/WebP <=10 MB dari komputer."
+                },
+                {
+                  "key": "note",
+                  "type": "text",
+                  "value": "{{audit_note}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Selesai",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/mark-done",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Tolak pembayaran",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/reject-payment",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Bukti belum cocok mutasi\",\n  \"note\": \"{{audit_note}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Koreksi konfirmasi",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/revert-confirmation",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"{{audit_note}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Batalkan order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/cancel",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"{{audit_note}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Buka CANCELLED menjadi PAID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/reopen",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"to\":\"PAID\",\"paidAmount\":{{expected_total}},\"partnerCompanyId\":\"{{partner_id}}\",\"partnerAmount\":{{subtotal}},\"note\":\"{{audit_note}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Gagal dan minta refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/fail",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Pesanan tidak dapat dipenuhi\",\n  \"note\": \"{{audit_note}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Tandai refund selesai",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/mark-refunded",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"{{audit_note}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Buka CANCELLED untuk refund",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/orders/{{order_id}}/reopen",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"to\":\"REFUND_REQUESTED\",\"paidAmount\":{{expected_total}},\"note\":\"{{audit_note}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Admin file payment-proof",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/files/payment-proof/{{payment_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Admin file order-proof",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/files/order-proof/{{order_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Admin file qris",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/files/qris/{{payment_account_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200, 404]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "06 - Admin master data",
+      "description": "PUT = data lengkap, bukan partial patch. Edit/hapus memakai target_* ID TERPISAH dari ID katalog/outlet aktif. Hapus hanya fixture test yang dibuat sendiri. DELETE outlet sengaja ditolak 409.",
+      "item": [
+        {
+          "name": "List brands",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/data/brands",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List menu",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/data/menu",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List option-groups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/data/option-groups",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List option-choices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/data/option-choices",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List outlets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/data/outlets",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List partners",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/data/partners",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "if(pm.response.code===200) { const p=pm.response.json().find(p=>p.isActive); if(p) pm.environment.set(\"partner_id\",p.id); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List payment-accounts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/data/payment-accounts",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "if(pm.response.code===200) { const p=pm.response.json().find(p=>p.isActive&&p.type===\"QRIS_STATIC\"); if(p) pm.environment.set(\"payment_account_id\",p.id); }"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/api/admin/data/settings",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create menu",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/menu",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brandId\": \"{{brand_id}}\",\n  \"name\": \"Postman Test Menu\",\n  \"category\": \"Test\",\n  \"normalPrice\": 29000,\n  \"promoPrice\": null,\n  \"description\": null,\n  \"isAvailable\": false,\n  \"choices\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([201]); });",
+                  "if(pm.response.code===201) pm.environment.set(\"target_menu_id\",pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update menu",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/menu/{{target_menu_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brandId\": \"{{brand_id}}\",\n  \"name\": \"Postman Test Menu\",\n  \"category\": \"Test\",\n  \"normalPrice\": 29000,\n  \"promoPrice\": null,\n  \"description\": null,\n  \"isAvailable\": false,\n  \"choices\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete menu",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/menu/{{target_menu_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirm\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([204]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create option-groups",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/option-groups",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test Group\",\n  \"required\": false,\n  \"maxSelect\": 1,\n  \"sortOrder\": 99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([201]); });",
+                  "if(pm.response.code===201) pm.environment.set(\"target_option_group_id\",pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update option-groups",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/option-groups/{{target_option_group_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test Group\",\n  \"required\": false,\n  \"maxSelect\": 1,\n  \"sortOrder\": 99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete option-groups",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/option-groups/{{target_option_group_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirm\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([204]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create option-choices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/option-choices",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupId\": \"{{target_option_group_id}}\",\n  \"label\": \"Postman Test Choice\",\n  \"sortOrder\": 99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([201]); });",
+                  "if(pm.response.code===201) pm.environment.set(\"target_option_choice_id\",pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update option-choices",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/option-choices/{{target_option_choice_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupId\": \"{{target_option_group_id}}\",\n  \"label\": \"Postman Test Choice\",\n  \"sortOrder\": 99\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete option-choices",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/option-choices/{{target_option_choice_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirm\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([204]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create outlets",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/outlets",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brandId\": \"{{brand_id}}\",\n  \"name\": \"Postman Test Outlet\",\n  \"address\": \"Test address\",\n  \"city\": null,\n  \"lat\": -6.2,\n  \"lng\": 106.8,\n  \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([201]); });",
+                  "if(pm.response.code===201) pm.environment.set(\"target_outlet_id\",pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update outlets",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/outlets/{{target_outlet_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"brandId\": \"{{brand_id}}\",\n  \"name\": \"Postman Test Outlet\",\n  \"address\": \"Test address\",\n  \"city\": null,\n  \"lat\": -6.2,\n  \"lng\": 106.8,\n  \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete outlets - protected 409",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/outlets/{{target_outlet_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirm\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([409]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create partners",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/partners",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test Partner\",\n  \"phone\": null,\n  \"website\": null,\n  \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([201]); });",
+                  "if(pm.response.code===201) pm.environment.set(\"target_partner_id\",pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update partners",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/partners/{{target_partner_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test Partner\",\n  \"phone\": null,\n  \"website\": null,\n  \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete partners",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/partners/{{target_partner_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirm\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([204]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create QRIS account",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/admin/data/payment-accounts",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "type",
+                  "type": "text",
+                  "value": "QRIS_STATIC"
+                },
+                {
+                  "key": "provider",
+                  "type": "text",
+                  "value": "Postman Test Merchant"
+                },
+                {
+                  "key": "accountName",
+                  "type": "text",
+                  "value": "Postman Test Merchant"
+                },
+                {
+                  "key": "accountNo",
+                  "type": "text",
+                  "value": ""
+                },
+                {
+                  "key": "isActive",
+                  "type": "text",
+                  "value": "false"
+                },
+                {
+                  "key": "sortOrder",
+                  "type": "text",
+                  "value": "99"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Pilih gambar JPEG/PNG/WebP <=10 MB dari komputer."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([201]); });",
+                  "if(pm.response.code===201) pm.environment.set(\"target_payment_account_id\",pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update QRIS account",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": "{{base_url}}/api/admin/data/payment-accounts/{{target_payment_account_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "type",
+                  "type": "text",
+                  "value": "QRIS_STATIC"
+                },
+                {
+                  "key": "provider",
+                  "type": "text",
+                  "value": "Postman Test Merchant"
+                },
+                {
+                  "key": "accountName",
+                  "type": "text",
+                  "value": "Postman Test Merchant"
+                },
+                {
+                  "key": "accountNo",
+                  "type": "text",
+                  "value": ""
+                },
+                {
+                  "key": "isActive",
+                  "type": "text",
+                  "value": "false"
+                },
+                {
+                  "key": "sortOrder",
+                  "type": "text",
+                  "value": "99"
+                },
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": [],
+                  "description": "Pilih gambar JPEG/PNG/WebP <=10 MB dari komputer."
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });",
+                  "if(pm.response.code===201) pm.environment.set(\"target_payment_account_id\",pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Delete payment account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/payment-accounts/{{target_payment_account_id}}",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirm\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([204]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update store settings",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/data/settings",
+            "description": "Mengubah setting operasional. Tinjau semua field. Tidak mengambil alih jam toko otomatis.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n \"status\":\"{{store_status}}\",\"openAt\":\"{{open_at}}\",\"closeAt\":\"{{close_at}}\",\n \"adminWa\":\"{{admin_wa}}\",\"serviceFee\":{{service_fee}},\"maxCups\":10,\n \"paymentWindowMin\":15,\"checkoutCutoffMin\":30,\"verifyEtaMin\":10,\"closedMessage\":null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "07 - Akun admin - mutasi sensitif",
+      "description": "Mengubah identitas/password dan mencabut SELURUH sesi. Jangan jalankan pada akun operasional tanpa niat eksplisit. Isi password lokal saja.",
+      "item": [
+        {
+          "name": "Ubah username dan email",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/profile",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"identity\",\n  \"username\": \"{{new_username}}\",\n  \"email\": \"{{new_email}}\",\n  \"currentPassword\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Ganti password",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/admin/profile",
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"password\",\n  \"currentPassword\": \"{{admin_password}}\",\n  \"newPassword\": \"{{new_password}}\",\n  \"confirmation\": \"{{new_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "08 - Cron - Bearer secret",
+      "description": "Isi cron_secret lokal. Request dapat mengubah status/data; guard mutasi berlaku.",
+      "item": [
+        {
+          "name": "expire-orders",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/cron/expire-orders",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{cron_secret}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "osm-sync",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{base_url}}/api/cron/osm-sync",
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{cron_secret}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.environment.get(\"allow_mutations\") !== \"true\") {",
+                  "  pm.execution.skipRequest();",
+                  "  throw new Error(\"Mutasi diblokir. Gunakan DB test; set allow_mutations=true secara sadar.\");",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP status sesuai kontrak\", function () { pm.expect(pm.response.code).to.be.oneOf([200]); });"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}
