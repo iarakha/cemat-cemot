@@ -62,14 +62,14 @@ const MENU: Record<string, [string, string, number][]> = {
 const MASTERS: [string, boolean, string[]][] = [
   ["Suhu", true, ["Es", "Panas"]],
   ["Ukuran", true, ["Regular", "Large"]],
-  ["Gula", true, ["No Sugar", "Less", "Normal", "Extra"]],
+  ["Gula", true, ["No Sugar", "Less Sugar", "Normal", "Extra"]],
   ["Level Es", true, ["No Ice", "Less", "Normal"]],
 ];
 // Pilihan contoh per menu baru: [grup, label, selisih harga, default]. Large +4.000 hanya contoh.
 const MENU_OPTIONS: [string, string, number, boolean][] = [
   ["Suhu", "Es", 0, true], ["Suhu", "Panas", 0, false],
   ["Ukuran", "Regular", 0, true], ["Ukuran", "Large", 4000, false],
-  ["Gula", "Normal", 0, true], ["Gula", "Less", 0, false], ["Gula", "No Sugar", 0, false], ["Gula", "Extra", 0, false],
+  ["Gula", "Normal", 0, true], ["Gula", "Less Sugar", 0, false], ["Gula", "No Sugar", 0, false], ["Gula", "Extra", 0, false],
   ["Level Es", "No Ice", 0, false], ["Level Es", "Normal", 0, true], ["Level Es", "Less", 0, false],
 ];
 

@@ -141,6 +141,13 @@
       "when": 1794868899673,
       "tag": "0019_partner_attempts",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794918944198,
+      "tag": "0020_sugar_label_less_sugar",
+      "breakpoints": true
     }
   ]
 }
