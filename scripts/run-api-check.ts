@@ -31,6 +31,7 @@ try {
   const env = { ...process.env, DATABASE_URL: testUrl.toString(), UPLOAD_DIR: dir, OTP_HMAC_SECRET: randomBytes(32).toString("hex"), CRON_SECRET: randomBytes(32).toString("hex"), APP_URL: `http://localhost:${port}`, API_BASE_URL: `http://localhost:${port}` };
   await run(process.execPath, ["node_modules/drizzle-kit/bin.cjs", "migrate"], env);
   await run("npx", ["tsx", "src/db/seed.ts"], { ...env, NODE_ENV: "development" });
+  await run("npx", ["tsx", "scripts/check-partner-migration.ts"], env);
   server = spawn(process.execPath, ["node_modules/next/dist/bin/next", "start", "-p", port], { env: { ...env, NODE_ENV: "production" }, stdio: ["ignore", "pipe", "pipe"] });
   // Do not log request URL containing private tracking tokens; keep bounded server diagnostics for failure.
   let log = "";

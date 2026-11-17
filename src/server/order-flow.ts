@@ -23,7 +23,7 @@ const ALLOWED: Record<OrderStatus, OrderStatus[]> = {
   PROOF_SENT: ["VERIFYING", "PENDING_PAYMENT", "CANCELLED"],
   VERIFYING: ["PAID", "PENDING_PAYMENT", "CANCELLED"],
   PAID: ["PROCESSING", "REFUND_REQUESTED", "PENDING_PAYMENT"],
-  PROCESSING: ["DONE", "REFUND_REQUESTED"],
+  PROCESSING: ["DONE", "REFUND_REQUESTED", "PAID"],
   DONE: [],
   REFUND_REQUESTED: ["REFUNDED"],
   REFUNDED: [],
@@ -189,7 +189,13 @@ export function phaseTimes(events: Bundle["events"]) {
   let start = 0;
   events.forEach((e, i) => { if (e.toStatus === "PENDING_PAYMENT" && e.fromStatus) start = i; });
   const out: Record<string, string> = {};
-  for (const e of events.slice(start)) if (e.toStatus && e.fromStatus !== e.toStatus) out[e.toStatus] = e.createdAt.toISOString();
+  for (const e of events.slice(start)) {
+    if (e.type === "PARTNER_RETRY") {
+      delete out.PROCESSING;
+      delete out.DONE;
+      out.RETRY = e.createdAt.toISOString();
+    } else if (e.toStatus && e.fromStatus !== e.toStatus) out[e.toStatus] = e.createdAt.toISOString();
+  }
   return out;
 }
 
@@ -210,7 +216,9 @@ export async function trackingView(token: string) {
     orderCode: b.o.orderCode, status: b.o.status, customerName: b.o.customerName, createdAt: b.o.createdAt, expiresAt: b.o.expiresAt, cancelReason: b.o.cancelReason,
     items: b.items.map((i) => ({ name: i.nameSnapshot, qty: i.qty, unitPrice: i.unitPrice, options: i.optionsSnapshot, note: i.note })),
     totals: { subtotal: b.o.subtotal, fee: b.o.serviceFee, uniqueCode: b.o.uniqueCode, total: b.o.total },
-    queueNumber: b.o.queueNumber, hasOrderProof: !!b.o.orderProofPath,
+    queueNumber: b.o.queueNumber, hasOrderProof: !!b.o.orderProofPath, paidAt: b.o.paidAt,
+    fulfillment: { retried: b.events.some(e => e.type === "PARTNER_RETRY"), waitingForRetry: b.o.status === "PAID" && b.events.some(e => e.type === "PARTNER_RETRY"),
+      message: b.o.status === "PAID" && b.events.some(e => e.type === "PARTNER_RETRY") ? "Pesanan sedang diproses ulang. Pembayaran sudah terverifikasi; tidak perlu bayar lagi." : null },
     outlet: { name: b.outletName, address: b.outletAddress, brand: b.brandName },
     paymentAccounts: accounts.map((a) => ({ id: a.id, type: a.type, provider: pay?.destinationSnapshot?.provider ?? a.provider, accountName: pay?.destinationSnapshot?.accountName ?? a.accountName, qrisUrl: a.type === "QRIS_STATIC" ? `/api/qris/${a.id}?token=${b.o.trackingToken}` : null })),
     payment: pay ? { status: pay.status, hasProof: !!pay.proofImagePath, claimedAt: pay.proofClaimedAt } : null,

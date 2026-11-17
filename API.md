@@ -73,15 +73,22 @@ Aksi order:
 | `start-verification` | `{}`; PROOF_SENT ke VERIFYING |
 | `confirm-payment` | `{paidAmount,partnerCompanyId,partnerAmount,note?}`; hanya VERIFYING. Partner aktif wajib, nominal diterima >= total |
 | `reject-payment` | `{reason,note?}`; payment lama REJECTED, payment baru PENDING, deadline baru |
-| `revert-confirmation` | `{note}`; hanya PAID sebelum processing |
+| `revert-confirmation` | `{note,attemptId?}`; hanya PAID sebelum processing; 409 `PAYMENT_CORRECTION_DISABLED` setelah partner gagal |
 | `reopen` | `{to:"PAID"|"REFUND_REQUESTED",paidAmount,note,partnerCompanyId?,partnerAmount?}`; hanya CANCELLED; PAID wajib partner |
 | `cancel` | `{note}`; hanya PENDING_PAYMENT/PROOF_SENT/VERIFYING |
-| `start-processing` | Multipart `queueNumber`, `file` (bukti order di app partner), `note?`; PAID ke PROCESSING; nomor antrean + foto wajib dan disimpan atomik |
-| `order-proof` | Multipart `queueNumber?`, `file?`, `note?`; minimal salah satu; PROCESSING/DONE. Simpan ke kolom bukti order (`orders.order_proof_path/at/by`), tidak menyentuh bukti bayar. `replace-proof` = alias lama |
-| `mark-done` | `{}`; PROCESSING ke DONE |
-| `fail` | `{reason,note?}`; PAID/PROCESSING ke REFUND_REQUESTED |
+| `start-processing` | Multipart `attemptId`, `queueNumber`, `file` (bukti order di app partner), `note?`; PAID ke PROCESSING; nomor antrean + foto wajib dan disimpan atomik |
+| `order-proof` | Multipart `attemptId`, `queueNumber?`, `file?`, `note?`; minimal salah satu; PROCESSING/DONE. Simpan ke kolom bukti order (`orders.order_proof_path/at/by`), tidak menyentuh bukti bayar. `replace-proof` = alias lama |
+| `mark-done` | `{attemptId}`; PROCESSING ke DONE |
+| `retry-partner` | `{attemptId,partnerCompanyId,reason,note?}`; PROCESSING ke PAID untuk proses ulang, partner aktif dan berbeda wajib |
+| `fail` | `{attemptId,reason,note?}`; PAID/PROCESSING ke REFUND_REQUESTED; arsip percobaan, lepas nomor/foto aktif; payment tetap VERIFIED |
 | `set-refund-account` | `{method:"BANK"|"EWALLET",provider,accountNo,accountName}`; hanya REFUND_REQUESTED |
 | `mark-refunded` | `{note}`; rekening refund wajib terisi |
+
+Flow partner gagal memerlukan migrasi repo `0019_partner_attempts`; belum diterapkan ke DB operasional. Detail admin menyertakan `attempts` urut sequence: UUID `id`, partner/name/nominal snapshot, admin/waktu penugasan/penutupan, outcome/alasan, nomor dan `hasOrderProof`/`proofUrl` (tanpa path penyimpanan). Foto arsip hanya `GET /api/admin/files/attempt-proof/{attemptId}` dengan sesi admin. Penugasan current = `closedAt:null`; selesai order bukan berarti percobaan gagal.
+
+`retry-partner` mengarsip percobaan lama, membuat penugasan baru dan melepas nomor/foto aktif dalam satu transaksi terkunci; tidak mengubah payment, paidAt, total, outlet, token atau deadline. Nominal partner baru null karena financial Phase 2, bukan dianggap nol atau bukti transfer. Klik ganda/stale tab mendapat 409 `ATTEMPT_CHANGED`, bukan replay sukses; muat ulang detail. Semua mutasi pemenuhan (`start-processing`, `order-proof`/`replace-proof`, `mark-done`, `fail`, `revert-confirmation`) harus membawa `attemptId` terbaru setelah sequence > 1; percobaan pertama tetap menerima klien lama tanpa ID. `retry-partner` selalu wajib ID. Koreksi payment biasa menutup penugasan `PAYMENT_CORRECTED`; setelah kegagalan partner koreksi payment dilarang.
+
+Tracking menyertakan `paidAt` asli dan `fulfillment:{retried,waitingForRetry,message}`; tidak menyertakan partner/alasan/foto arsip. `phases.PAID` tetap waktu pembayaran awal; `phases.RETRY` waktu proses ulang terbaru, `PROCESSING`/`DONE` lama dibersihkan. Saat PAID proses ulang, tidak ada nomor/foto pickup aktif, akun bayar, atau permintaan pembayaran baru.
 
 Semua aksi ber-guard, transaksi dan row lock. Replay transisi yang sudah selesai mengembalikan `{alreadyProcessed:true,status}`. WA hanya tautan manual, tidak ada pengiriman otomatis.
 

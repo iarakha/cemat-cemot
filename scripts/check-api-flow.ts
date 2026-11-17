@@ -115,7 +115,74 @@ async function main() {
   assert.equal(view.progress.label,'Diproses');
   assert.deepEqual(view.progress.steps.map((s: {checked:boolean})=>s.checked),[true,true,true,true,false]);
   await call(`/api/pesanan/${token}/files/order-proof`,200);
-  await call(`/api/admin/orders/${order.id}/mark-done`,200,{},true);
+  // Partner retry: archive privately, keep original payment, reject stale tabs and duplicate requests.
+  const [replacement] = await sql`insert into partner_companies (name) values ('Replacement Partner') returning id`;
+  const [inactive] = await sql`insert into partner_companies (name,is_active) values ('Inactive Partner',false) returning id`;
+  const [original] = await sql`select * from orders where id=${order.id}`;
+  const originalPayments = await sql`select * from payments where order_id=${order.id} order by id`;
+  const currentAttempt = async () => (await sql`select * from fulfillment_attempts where order_id=${order.id} and closed_at is null`)[0];
+  const initialAttempt = await currentAttempt();
+  const retryBody = {attemptId:initialAttempt.id,partnerCompanyId:replacement.id,reason:'Partner membatalkan'};
+  const retryPath = `/api/admin/orders/${order.id}/retry-partner`;
+  await call(retryPath,401,retryBody);
+  await call(retryPath,400,{...retryBody,reason:' '},true);
+  await call(retryPath,400,{partnerCompanyId:replacement.id,reason:'Gagal'},true);
+  await call(retryPath,422,{...retryBody,partnerCompanyId:partner.id},true);
+  await call(retryPath,422,{...retryBody,partnerCompanyId:inactive.id},true);
+  await call(retryPath,422,{...retryBody,partnerCompanyId:randomUUID()},true);
+  assert.equal((await currentAttempt()).id,initialAttempt.id);
+  // Force failure at final audit insert: the archive/new attempt/status must all roll back.
+  await sql`create function reject_retry_test() returns trigger language plpgsql as $$ begin if NEW.type = 'PARTNER_RETRY' then raise exception 'forced retry rollback'; end if; return NEW; end $$`;
+  await sql`create trigger reject_retry_test before insert on order_events for each row execute function reject_retry_test()`;
+  try { await call(retryPath,500,retryBody,true); }
+  finally { await sql`drop trigger reject_retry_test on order_events`; await sql`drop function reject_retry_test()`; }
+  assert.deepEqual((await sql`select * from orders where id=${order.id}`)[0],original);
+  assert.equal((await currentAttempt()).id,initialAttempt.id);
+  assert.equal((await sql`select count(*)::int n from fulfillment_attempts where order_id=${order.id}`)[0].n,1);
+  const retries = await Promise.all([0,1].map(() => fetch(base+retryPath,{method:'POST',headers:{'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify(retryBody)})));
+  assert.deepEqual(retries.map(r=>r.status).sort(),[200,409]); tests+=2;
+  const retryView = await (await call(`/api/pesanan/${token}`,200)).json();
+  assert.equal(retryView.status,'PAID');assert.equal(retryView.queueNumber,null);assert.equal(retryView.hasOrderProof,false);
+  assert.equal(retryView.fulfillment.waitingForRetry,true);assert.match(retryView.fulfillment.message,/tidak perlu bayar lagi/);
+  assert.equal(retryView.phases.PROCESSING,undefined);assert.equal(retryView.phases.PAID,view.phases.PAID);
+  assert.equal(retryView.payment.status,'VERIFIED');assert.deepEqual(retryView.totals,view.totals);
+  for (const key of ['paid_at','expires_at','tracking_token','order_code','outlet_id','total']) {
+    assert.deepEqual((await sql`select * from orders where id=${order.id}`)[0][key],original[key]);
+  }
+  assert.deepEqual(await sql`select * from payments where order_id=${order.id} order by id`,originalPayments);
+  const archived = (await sql`select * from fulfillment_attempts where id=${initialAttempt.id}`)[0];
+  assert.equal(archived.queue_number,'A047');assert.equal(archived.order_proof_path,original.order_proof_path);
+  assert.equal(archived.partner_amount,10000);assert.equal(archived.outcome,'FAILED');assert.ok(archived.closed_by);
+  await call(`/api/admin/files/attempt-proof/${initialAttempt.id}`,401);
+  await call(`/api/admin/files/attempt-proof/${initialAttempt.id}`,200,undefined,true);
+  await call(`/api/pesanan/${token}/files/attempt-proof`,404);
+  await call(`/api/pesanan/${token}/files/order-proof`,404);
+  const retryDetail = await (await call(`/api/admin/orders/${order.id}`,200,undefined,true)).json();
+  assert.equal(retryDetail.attempts.length,2);assert.equal(JSON.stringify(retryDetail).includes(original.order_proof_path),false);
+  const secondAttempt = await currentAttempt();
+  await call(`/api/admin/orders/${order.id}/revert-confirmation`,409,{attemptId:secondAttempt.id,note:'Do not undo payment'},true);
+  await call(`/api/admin/orders/${order.id}/start-processing`,409,processing,true); // old client without attemptId
+  const newProof = form();newProof.set('queueNumber','B048');newProof.set('attemptId',initialAttempt.id);
+  await call(`/api/admin/orders/${order.id}/start-processing`,409,newProof,true);
+  newProof.set('attemptId',secondAttempt.id);
+  await call(`/api/admin/orders/${order.id}/start-processing`,200,newProof,true);
+  for (const action of ['mark-done','fail','retry-partner']) {
+    await call(`/api/admin/orders/${order.id}/${action}`,409,{...retryBody,reason:'stale'},true);
+  }
+  await call(retryPath,200,{attemptId:secondAttempt.id,partnerCompanyId:partner.id,reason:'Partner pengganti gagal'},true);
+  const thirdAttempt = await currentAttempt();
+  assert.equal(thirdAttempt.sequence,3);assert.equal(thirdAttempt.partner_amount,null);
+  const newest = form();newest.set('queueNumber','C049');newest.set('attemptId',thirdAttempt.id);
+  await call(`/api/admin/orders/${order.id}/start-processing`,200,newest,true);
+  const latestView = await (await call(`/api/pesanan/${token}`,200)).json();
+  assert.equal(latestView.queueNumber,'C049');assert.equal(latestView.fulfillment.waitingForRetry,false);
+  assert.ok(new Date(latestView.phases.PROCESSING) > new Date(view.phases.PROCESSING));
+  const replaceLatest = form();replaceLatest.set('attemptId',thirdAttempt.id);
+  await call(`/api/admin/orders/${order.id}/order-proof`,200,replaceLatest,true);
+  await call(`/api/admin/files/attempt-proof/${initialAttempt.id}`,200,undefined,true);
+  await call(`/api/admin/files/attempt-proof/${secondAttempt.id}`,200,undefined,true);
+  await call(`/api/admin/orders/${order.id}/mark-done`,200,{attemptId:thirdAttempt.id},true);
+  await call(retryPath,409,{attemptId:thirdAttempt.id,partnerCompanyId:replacement.id,reason:'Final'},true);
   const done = await (await call(`/api/pesanan/${token}`,200)).json();
   assert.equal(done.status,'DONE');
   const selfRefund = await call(`/api/pesanan/${token}/refund-account`,403,{method:'BANK',provider:'Test Bank',accountNo:'1234567890',accountName:'Test Buyer'});
@@ -124,7 +191,7 @@ async function main() {
   assert.match(selfRefundError.error.message,/WhatsApp/);
   assert.equal((await sql`select refund_account_no from orders where id=${order.id}`)[0].refund_account_no,null);
   assert.deepEqual(done.progress.steps.map((s: {checked:boolean})=>s.checked),[true,true,true,true,true]);
-  await call(`/api/admin/orders/${order.id}/mark-done`,200,{},true);
+  await call(`/api/admin/orders/${order.id}/mark-done`,200,{attemptId:thirdAttempt.id},true);
   // total/count list admin + dashboard
   const all = await (await call('/api/admin/orders',200,undefined,true)).json();
   assert.equal(all.total,1);assert.equal(all.counts.ALL,1);assert.equal(all.counts.DONE,1);
@@ -159,6 +226,31 @@ async function main() {
   assert.equal(JSON.stringify(customerView).includes('9876543210'),false);
   await call(`/api/admin/orders/${order.id}/mark-refunded`,200,{note:'Refund processed'},true);
   assert.equal((await sql`select status from orders where id=${order.id}`)[0].status,'REFUNDED');
+  await call(retryPath,409,{attemptId:thirdAttempt.id,partnerCompanyId:replacement.id,reason:'Refund final'},true);
+  // Real refund branch after partner failure (no forced status), plus unchanged cron expiry.
+  const refundToken = (await (await call('/api/checkout',201,{...checkoutBody(),idempotencyKey:randomUUID()})).json()).token;
+  const [refundOrder] = await sql`select id from orders where tracking_token=${refundToken}`;
+  await call(`/api/pesanan/${refundToken}/proof`,204,form());
+  await call(`/api/admin/orders/${refundOrder.id}/start-verification`,200,{},true);
+  await call(`/api/admin/orders/${refundOrder.id}/confirm-payment`,200,{paidAmount:total,partnerCompanyId:partner.id,partnerAmount:10000},true);
+  const refundProof = form();refundProof.set('queueNumber','REF-1');
+  await call(`/api/admin/orders/${refundOrder.id}/start-processing`,200,refundProof,true);
+  const [refundAttempt] = await sql`select id from fulfillment_attempts where order_id=${refundOrder.id} and closed_at is null`;
+  await call(`/api/admin/orders/${refundOrder.id}/fail`,200,{attemptId:refundAttempt.id,reason:'Tidak bisa dilanjutkan'},true);
+  await call(`/api/admin/files/attempt-proof/${refundAttempt.id}`,200,undefined,true);
+  assert.equal((await sql`select status from payments where order_id=${refundOrder.id}`)[0].status,'VERIFIED');
+  await call(`/api/pesanan/${refundToken}/files/order-proof`,404);
+  assert.equal((await (await call(`/api/pesanan/${refundToken}`,200)).json()).queueNumber,null);
+  await call(`/api/admin/orders/${refundOrder.id}/retry-partner`,409,{attemptId:refundAttempt.id,partnerCompanyId:replacement.id,reason:'Final refund'},true);
+  await call(`/api/admin/orders/${refundOrder.id}/set-refund-account`,200,{method:'BANK',provider:'Test Bank',accountNo:'9876543210',accountName:'Test Buyer'},true);
+  await call(`/api/admin/orders/${refundOrder.id}/mark-refunded`,200,{note:'Manual refund'},true);
+  const expireToken = (await (await call('/api/checkout',201,{...checkoutBody(),idempotencyKey:randomUUID()})).json()).token;
+  await sql`update orders set expires_at=now()-interval '1 second' where tracking_token=${expireToken}`;
+  await call(`/api/pesanan/${expireToken}/proof`,410,form());
+  const expiryResponse = await fetch(base+'/api/cron/expire-orders',{method:'POST',headers:{Authorization:`Bearer ${process.env.CRON_SECRET}`}});
+  assert.equal(expiryResponse.status,200);tests++;
+  assert.equal((await sql`select status from orders where tracking_token=${expireToken}`)[0].status,'CANCELLED');
+  assert.equal((await sql`select status from payments where order_id=(select id from orders where tracking_token=${expireToken})`)[0].status,'EXPIRED');
   // Impor massal menu (RND 16.2): preview, commit atomik, token terikat berkas, idempotensi.
   const imp = async (path: string, status: number, csv: string | Uint8Array, extra: Record<string, string> = {}, admin = true) => {
     const fd = new FormData();

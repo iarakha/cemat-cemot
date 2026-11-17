@@ -223,6 +223,32 @@ export const payments = pgTable("payments", {
   index("payments_partner_idx").on(t.partnerCompanyId),
 ]);
 
+// Penugasan aktif terpisah dari payment asli. Bukti hanya disalin saat percobaan ditutup.
+export const fulfillmentAttempts = pgTable("fulfillment_attempts", {
+  id: id(),
+  orderId: uuid("order_id").notNull().references(() => orders.id),
+  sequence: integer("sequence").notNull(),
+  partnerCompanyId: uuid("partner_company_id").notNull().references(() => partnerCompanies.id),
+  partnerName: text("partner_name").notNull(),
+  partnerAmount: integer("partner_amount"), // snapshot nominal lama; bukan bukti transfer/ledger
+  assignedAt: ts("assigned_at").notNull().defaultNow(),
+  assignedBy: uuid("assigned_by").references(() => adminUsers.id),
+  closedAt: ts("closed_at"),
+  closedBy: uuid("closed_by").references(() => adminUsers.id),
+  outcome: text("outcome"), // FAILED | PAYMENT_CORRECTED; null = penugasan terkini
+  reason: text("reason"),
+  queueNumber: text("queue_number"),
+  orderProofPath: text("order_proof_path"),
+  orderProofAt: ts("order_proof_at"),
+  orderProofBy: uuid("order_proof_by").references(() => adminUsers.id),
+}, (t) => [
+  unique("fulfillment_attempts_sequence_uq").on(t.orderId, t.sequence),
+  uniqueIndex("fulfillment_attempts_current_uq").on(t.orderId).where(sql`${t.closedAt} IS NULL`),
+  check("fulfillment_attempts_sequence_chk", sql`${t.sequence} > 0`),
+  check("fulfillment_attempts_amount_chk", sql`${t.partnerAmount} IS NULL OR ${t.partnerAmount} >= 0`),
+  check("fulfillment_attempts_closed_chk", sql`(${t.closedAt} IS NULL AND ${t.outcome} IS NULL AND ${t.reason} IS NULL) OR (${t.closedAt} IS NOT NULL AND ${t.outcome} IS NOT NULL AND ${t.outcome} IN ('FAILED', 'PAYMENT_CORRECTED') AND ${t.reason} IS NOT NULL AND char_length(btrim(${t.reason})) BETWEEN 1 AND 500)`),
+]);
+
 // Jejak audit, hanya ditambah.
 export const orderEvents = pgTable("order_events", {
   id: id(),

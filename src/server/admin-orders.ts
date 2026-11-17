@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { brands, orders, outlets, payments, partnerCompanies } from "@/db/schema";
+import { brands, fulfillmentAttempts, orders, outlets, payments, partnerCompanies } from "@/db/schema";
 import { ApiError, Input, NOT_FOUND } from "./http";
 import { removeStored, saveImage } from "./files";
 import { getSettings } from "./store";
@@ -39,7 +39,9 @@ export async function adminOrderView(id: string) {
   // Guarded admin response. Paths stay internal; file routes use payment/order IDs.
   // paymentProof = bukti bayar pembeli (per payment); orderProof = bukti pesanan di app brand dari admin (per order).
   const order = { ...b.o, orderProofPath: undefined, buyerHash: undefined };
+  const attempts = await db.select().from(fulfillmentAttempts).where(eq(fulfillmentAttempts.orderId, id)).orderBy(asc(fulfillmentAttempts.sequence));
   return {
+    attempts: attempts.map(({ orderProofPath, ...a }) => ({ ...a, hasOrderProof: !!orderProofPath, proofUrl: orderProofPath ? `/api/admin/files/attempt-proof/${a.id}` : null })),
     order: { ...order, orderProof: { exists: !!b.o.orderProofPath, uploadedAt: b.o.orderProofAt, uploadedBy: b.o.orderProofBy } },
     brand: b.brandName, outlet: b.outletName,
     items: b.items, payments: b.pays.map(({ proofImagePath, ...p }) => ({ ...p, hasProof: !!proofImagePath })), events: b.events,
@@ -55,7 +57,9 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
   const paidAmount = ["confirm-payment", "reopen"].includes(action) && (action !== "reopen" || b.o.to === "PAID") ? b.int("paidAmount", 0, 2_147_483_647) : null;
   const partnerId = paidAmount !== null ? b.uuid("partnerCompanyId") : null;
   const partnerAmount = paidAmount !== null ? b.int("partnerAmount", 0, 2_147_483_647) : null;
-  const reason = ["reject-payment", "fail"].includes(action) ? b.str("reason", 1, 300) : null;
+  const reason = ["reject-payment", "fail", "retry-partner"].includes(action) ? b.str("reason", 1, 300) : null;
+  const retryPartnerId = action === "retry-partner" ? b.uuid("partnerCompanyId") : null;
+  const expectedAttempt = action === "retry-partner" || b.has("attemptId") ? b.uuid("attemptId") : null;
   const refund = action === "set-refund-account" ? {
     method: b.oneOf("method", ["BANK", "EWALLET"] as const), provider: b.str("provider", 2, 40),
     accountNo: b.str("accountNo", 5, 30), accountName: b.str("accountName", 2, 60),
@@ -78,6 +82,18 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
         if (already?.includes(o.status)) throw new AlreadyProcessed(o.status);
         if (!allowed.includes(o.status)) throw new ApiError(409, "INVALID_TRANSITION", "Status pesanan sudah berubah", { status: o.status });
       };
+      const [attempt] = await tx.select().from(fulfillmentAttempts).where(and(eq(fulfillmentAttempts.orderId, id), sql`${fulfillmentAttempts.closedAt} IS NULL`));
+      if (["retry-partner", "start-processing", "order-proof", "replace-proof", "mark-done", "fail", "revert-confirmation"].includes(action)) {
+        if ((expectedAttempt && expectedAttempt !== attempt?.id) || (attempt && attempt.sequence > 1 && !expectedAttempt)) {
+          throw new ApiError(409, "ATTEMPT_CHANGED", "Percobaan sudah berubah; muat ulang pesanan");
+        }
+      }
+      const archive = async (outcome: "FAILED" | "PAYMENT_CORRECTED", why: string) => {
+        if (!attempt) throw new ApiError(409, "ATTEMPT_CHANGED", "Penugasan partner tidak tersedia");
+        await tx.update(fulfillmentAttempts).set({ outcome, reason: why, closedAt: new Date(), closedBy: adminId,
+          queueNumber: o.queueNumber, orderProofPath: o.orderProofPath, orderProofAt: o.orderProofAt, orderProofBy: o.orderProofBy,
+        }).where(eq(fulfillmentAttempts.id, attempt.id));
+      };
       if (action === "start-verification") {
         requireStatus(["PROOF_SENT"], ["VERIFYING", "PAID"]);
         const p = await activePayment(tx, id);
@@ -96,6 +112,9 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
           if (action === "confirm-payment" && p?.status !== "VERIFYING") throw new ApiError(409, "INVALID_TRANSITION", "Mulai verifikasi lebih dulu");
           if (p) await tx.update(payments).set(values).where(eq(payments.id, p.id));
           else await tx.insert(payments).values({ ...values, orderId: id, expectedAmount: o.total });
+          const [last] = await tx.select().from(fulfillmentAttempts).where(eq(fulfillmentAttempts.orderId, id)).orderBy(desc(fulfillmentAttempts.sequence)).limit(1);
+          await tx.insert(fulfillmentAttempts).values({ orderId: id, sequence: (last?.sequence ?? 0) + 1,
+            partnerCompanyId: partner.id, partnerName: partner.name, partnerAmount, assignedBy: adminId });
         } else {
           // Reopen for refund requires actual amount received, even if fulfilment impossible.
           const received = b.int("paidAmount", 1, 2_147_483_647);
@@ -109,6 +128,9 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
           if (!p) throw new ApiError(409, "INVALID_TRANSITION", "Pembayaran aktif tidak ada");
           await tx.update(payments).set({ status: "REJECTED", note: reason }).where(eq(payments.id, p.id));
         } else {
+          const [failed] = await tx.select({ id: fulfillmentAttempts.id }).from(fulfillmentAttempts).where(and(eq(fulfillmentAttempts.orderId, id), eq(fulfillmentAttempts.outcome, "FAILED"))).limit(1);
+          if (failed) throw new ApiError(409, "PAYMENT_CORRECTION_DISABLED", "Proses ulang partner tidak boleh membatalkan pembayaran");
+          await archive("PAYMENT_CORRECTED", note!);
           await tx.update(payments).set({ status: "REJECTED", note }).where(and(eq(payments.orderId, id), eq(payments.status, "VERIFIED")));
         }
         await newPendingPayment(tx, o);
@@ -117,8 +139,21 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
         requireStatus(["PENDING_PAYMENT", "PROOF_SENT", "VERIFYING"], ["CANCELLED"]);
         await tx.update(payments).set({ status: "REJECTED", note }).where(and(eq(payments.orderId, id), inArray(payments.status, [...ACTIVE_PAYMENT])));
         await transition(tx, o, "CANCELLED", "admin", { ...opts, set: { cancelReason: "ADMIN" } });
+      } else if (action === "retry-partner") {
+        requireStatus(["PROCESSING"]);
+        if (!attempt) throw new ApiError(409, "ATTEMPT_CHANGED", "Penugasan partner tidak tersedia");
+        if (retryPartnerId === attempt.partnerCompanyId) throw new ApiError(422, "SAME_PARTNER", "Pilih partner berbeda");
+        const [partner] = await tx.select().from(partnerCompanies).where(and(eq(partnerCompanies.id, retryPartnerId!), eq(partnerCompanies.isActive, true))).for("share");
+        if (!partner) throw new ApiError(422, "PARTNER_INACTIVE", "Partner tidak aktif atau tidak ditemukan");
+        const [verified] = await tx.select({ id: payments.id }).from(payments).where(and(eq(payments.orderId, id), eq(payments.status, "VERIFIED"))).limit(1);
+        if (!verified) throw new ApiError(409, "INVALID_TRANSITION", "Pembayaran belum terverifikasi");
+        await archive("FAILED", reason!);
+        await tx.insert(fulfillmentAttempts).values({ orderId: id, sequence: attempt.sequence + 1, partnerCompanyId: partner.id, partnerName: partner.name, assignedBy: adminId });
+        await transition(tx, o, "PAID", "admin", { ...opts, type: "PARTNER_RETRY", note: reason,
+          set: { queueNumber: null, orderProofPath: null, orderProofAt: null, orderProofBy: null } });
       } else if (action === "start-processing") {
         requireStatus(["PAID"], ["PROCESSING", "DONE"]);
+        if (!attempt) throw new ApiError(409, "ATTEMPT_CHANGED", "Penugasan partner tidak tersedia");
         oldPath = o.orderProofPath;
         await transition(tx, o, "PROCESSING", "admin", { ...opts, set: { queueNumber, orderProofPath: rel, orderProofAt: new Date(), orderProofBy: adminId } });
       } else if (isOrderProof) {
@@ -132,7 +167,8 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
         await transition(tx, o, "DONE", "admin", opts);
       } else if (action === "fail") {
         requireStatus(["PAID", "PROCESSING"], ["REFUND_REQUESTED"]);
-        await transition(tx, o, "REFUND_REQUESTED", "admin", { ...opts, note: reason });
+        await archive("FAILED", reason!);
+        await transition(tx, o, "REFUND_REQUESTED", "admin", { ...opts, note: reason, set: { queueNumber: null, orderProofPath: null, orderProofAt: null, orderProofBy: null } });
       } else if (action === "set-refund-account") {
         requireStatus(["REFUND_REQUESTED"]);
         await tx.update(orders).set({ refundMethod: refund!.method, refundProvider: refund!.provider, refundAccountNo: refund!.accountNo, refundAccountName: refund!.accountName }).where(eq(orders.id, id));
@@ -146,7 +182,10 @@ export async function orderAction(id: string, action: string, b: Input, adminId:
     });
     committed = true;
     if ("alreadyProcessed" in result && rel) await removeStored(rel).catch(() => {});
-    if (oldPath) await removeStored(oldPath).catch(() => {});
+    if (oldPath) {
+      const [archived] = await db.select({ id: fulfillmentAttempts.id }).from(fulfillmentAttempts).where(eq(fulfillmentAttempts.orderProofPath, oldPath)).limit(1);
+      if (!archived) await removeStored(oldPath).catch(() => {});
+    }
     const bundle = await orderBundle({ id });
     const wa = bundle ? waOrderOf(bundle) : null;
     const waUrl = wa && action === "confirm-payment" ? waConfirmed(wa)

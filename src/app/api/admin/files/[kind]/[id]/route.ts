@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { orders, payments, paymentAccounts } from "@/db/schema";
+import { orders, payments, paymentAccounts, fulfillmentAttempts } from "@/db/schema";
 import { requireAdmin } from "@/server/admin-auth";
 import { fileResponse } from "@/server/files";
 import { handle, isUuid, NOT_FOUND } from "@/server/http";
@@ -15,6 +15,9 @@ export const GET = handle<{ params: Promise<{ kind: string; id: string }> }>(asy
   } else if (kind === "order-proof") {
     const [o] = await db.select().from(orders).where(eq(orders.id, id));
     rel = o?.orderProofPath ?? null;
+  } else if (kind === "attempt-proof") {
+    const [a] = await db.select().from(fulfillmentAttempts).where(eq(fulfillmentAttempts.id, id));
+    rel = a?.orderProofPath ?? null;
   } else if (kind === "qris") {
     const [a] = await db.select().from(paymentAccounts).where(eq(paymentAccounts.id, id));
     rel = a?.qrisImagePath ?? null;
